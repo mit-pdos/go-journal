@@ -1,4 +1,4 @@
-module goose-nfs
+module github.com/mit-pdos/goose-nfsd
 
 go 1.12
 
