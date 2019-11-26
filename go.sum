@@ -29,6 +29,8 @@ github.com/tchajed/mailboat v0.0.0-20191026015926-338a5b81ac1d/go.mod h1:dmgNTEH
 github.com/tchajed/mailboat v0.1.0/go.mod h1:aKa/T1YCMVZFM2xbXnMNyp9r4k0pPni4+sJ8GoY51Hw=
 github.com/zeldovich/go-rpcgen v0.0.0-20191121163054-6283c63e3450 h1:XIxsSL09TgkYnz9G9JEIkpAYpa5Wz+PSGsBqD2mhqyg=
 github.com/zeldovich/go-rpcgen v0.0.0-20191121163054-6283c63e3450/go.mod h1:CaF7Ys1EaK+D18PEYCmjISruqU1z98Cw+F/fwNUj4KQ=
+github.com/zeldovich/go-rpcgen v0.1.0 h1:OeVVmUFdrVoLvt+ryVlV79+yzj7RfaQuZe4Jdn05Qbw=
+github.com/zeldovich/go-rpcgen v0.1.0/go.mod h1:CaF7Ys1EaK+D18PEYCmjISruqU1z98Cw+F/fwNUj4KQ=
 golang.org/x/sys v0.0.0-20190222072716-a9d3bda3a223/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
 golang.org/x/sys v0.0.0-20191008105621-543471e840be/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20191115151921-52ab43148777 h1:wejkGHRTr38uaKRqECZlsCsJ1/TGxIyFbH32x5zUdu4=
