@@ -1,5 +1,6 @@
 package buf
 
+// Address of disk object and its size
 type Addr struct {
 	Blkno uint64
 	Off   uint64 // offset in bits

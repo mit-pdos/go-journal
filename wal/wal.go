@@ -323,7 +323,7 @@ func (l *Walog) logInstall() ([]uint64, TxnNum) {
 }
 
 // Shutdown logger and installer
-func (l *Walog) DoShutdown() {
+func (l *Walog) Shutdown() {
 	l.logLock.Lock()
 	l.shutdown = true
 	l.logLock.Unlock()

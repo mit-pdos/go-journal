@@ -8,6 +8,7 @@ import (
 	"fmt"
 )
 
+// A buf holds the disk object (inode, bitmap block, etc.) at Addr.
 type Buf struct {
 	Addr  Addr
 	Blk   disk.Block
@@ -97,6 +98,13 @@ func (buf *Buf) Install(blk disk.Block) bool {
 	return buf.dirty
 }
 
+// Load the bits of a disk block into buf, as specified by addr
+func (buf *Buf) Load(blk disk.Block) {
+	byte := buf.Addr.Off / 8
+	sz := util.RoundUp(buf.Addr.Sz, 8)
+	copy(buf.Blk, blk[byte:byte+sz])
+}
+
 func (buf *Buf) WriteDirect() {
 	buf.SetDirty()
 	if buf.Addr.Sz == disk.BlockSize {
@@ -110,48 +118,4 @@ func (buf *Buf) WriteDirect() {
 
 func (buf *Buf) SetDirty() {
 	buf.dirty = true
-}
-
-type BufMap struct {
-	addrs *AddrMap
-}
-
-func MkBufMap() *BufMap {
-	a := &BufMap{
-		addrs: MkAddrMap(),
-	}
-	return a
-}
-
-func (bmap *BufMap) Insert(buf *Buf) {
-	bmap.addrs.Insert(buf.Addr, buf)
-}
-
-func (bmap *BufMap) Lookup(addr Addr) *Buf {
-	e := bmap.addrs.Lookup(addr)
-	return e.(*Buf)
-}
-
-func (bmap *BufMap) Del(addr Addr) {
-	bmap.addrs.Del(addr)
-}
-
-func (bmap *BufMap) Ndirty() uint64 {
-	n := 0
-	bmap.addrs.Apply(func(a Addr, e interface{}) {
-		buf := e.(*Buf)
-		if buf.dirty {
-			n += 1
-		}
-	})
-	return 0
-}
-
-func (bmap *BufMap) Bufs() []*Buf {
-	bufs := make([]*Buf, 0)
-	bmap.addrs.Apply(func(a Addr, e interface{}) {
-		b := e.(*Buf)
-		bufs = append(bufs, b)
-	})
-	return bufs
 }

@@ -32,6 +32,7 @@ func MkTxn(fs *fs.FsSuper) *Txn {
 	return txn
 }
 
+// Return a unique Id for a transaction
 func (txn *Txn) GetTransId() TransId {
 	txn.mu.Lock()
 	id := txn.nextId
@@ -40,12 +41,10 @@ func (txn *Txn) GetTransId() TransId {
 	return id
 }
 
+// Read a disk object into buf
 func (txn *Txn) Load(buf *buf.Buf) {
 	blk := txn.log.Read(buf.Addr.Blkno)
-	byte := buf.Addr.Off / 8
-	sz := util.RoundUp(buf.Addr.Sz, 8)
-	copy(buf.Blk, blk[byte:byte+sz])
-	util.DPrintf(15, "addr %v read %v %v = 0x%x\n", buf.Addr, byte, sz, blk[byte:byte+1])
+	buf.Load(blk)
 }
 
 // Lock a disk object
@@ -62,7 +61,7 @@ func (txn *Txn) Lock(addr buf.Addr, id TransId) bool {
 	return first
 }
 
-// Remove buffer from this transaction
+// Release lock on buf of trans id
 func (txn *Txn) Release(addr buf.Addr, id TransId) {
 	util.DPrintf(10, "%d: Unlock %v\n", id, addr)
 	txn.locks.release(addr, id)
@@ -142,6 +141,6 @@ func (txn *Txn) LogSz() uint64 {
 	return txn.log.LogSz()
 }
 
-func (txn *Txn) DoShutdown() {
-	txn.log.DoShutdown()
+func (txn *Txn) Shutdown() {
+	txn.log.Shutdown()
 }
