@@ -63,6 +63,7 @@ func MkLog() *Walog {
 	return l
 }
 
+// On-disk header in first block of log
 type hdr struct {
 	head      uint64
 	tail      uint64
@@ -91,14 +92,6 @@ func encodeHdr(hdr hdr, blk disk.Block) {
 	enc.PutInt(hdr.tail)
 	enc.PutInt(uint64(hdr.logTxnNxt))
 	enc.PutInts(hdr.addrs)
-}
-
-func MaxLogSize() uint64 {
-	return fs.HDRADDRS * disk.BlockSize
-}
-
-func (l *Walog) LogSz() uint64 {
-	return l.logSz
 }
 
 func (l *Walog) index(index uint64) uint64 {
@@ -159,6 +152,10 @@ func (l *Walog) readtxnNxt() TxnNum {
 //
 //  For clients of WAL
 //
+
+func (l *Walog) LogSz() uint64 {
+	return l.logSz
+}
 
 // Scan log for blkno. If not present, read from disk
 // XXX use map
