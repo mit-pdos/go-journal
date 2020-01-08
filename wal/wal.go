@@ -53,7 +53,8 @@ func MkLog() *Walog {
 		shutdown:    false,
 	}
 	util.DPrintf(1, "mkLog: size %d\n", l.logSz)
-	l.writeHdr(0, 0, 0, l.memLog)
+
+	l.recover()
 
 	// TODO: do we still need to use machine.Spawn,
 	//  or can we just use go statements?
@@ -117,6 +118,16 @@ func (l *Walog) readHdr() *hdr {
 	blk := disk.Read(LOGHDR)
 	hdr := decodeHdr(blk)
 	return hdr
+}
+
+func (l *Walog) recover() {
+	hdr := l.readHdr()
+	for i := hdr.tail; i != hdr.head; i++ {
+		util.DPrintf(1, "recover block %d\n", hdr.addrs[l.index(i)])
+		blk := disk.Read(LOGSTART + l.index(i))
+		disk.Write(hdr.addrs[l.index(i)], blk)
+	}
+	l.writeHdr(0, 0, 0, []buf.Buf{})
 }
 
 func (l *Walog) memWrite(bufs []*buf.Buf) {
