@@ -49,7 +49,6 @@ func (l *Walog) logInstall() ([]uint64, TxnNum) {
 	}
 	l.memLog = l.memLog[l.index(hdr.tail):]
 	l.memTail = hdr.tail
-	l.dsktxnNxt = hdr.logTxnNxt
 	l.memLock.Unlock()
 	return hdr.addrs, hdr.logTxnNxt
 }

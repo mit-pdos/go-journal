@@ -24,7 +24,6 @@ type Walog struct {
 	memLog    []buf.Buf // in-memory log [memTail,memHead)
 	memTail   uint64    // tail of in-memory log
 	txnNxt    TxnNum    // next transaction number
-	dsktxnNxt TxnNum    // next transaction number to install
 
 	// Protects disk-related log state, incl. header, logtxnNxt,
 	// shutdown
@@ -47,7 +46,6 @@ func MkLog() *Walog {
 		memTail:     0,
 		txnNxt:      0,
 		logtxnNxt:   0,
-		dsktxnNxt:   0,
 		shutdown:    false,
 	}
 	util.DPrintf(1, "mkLog: size %d\n", l.logSz)
