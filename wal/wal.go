@@ -91,10 +91,6 @@ func encodeHdr(hdr hdr, blk disk.Block) {
 	enc.PutInts(hdr.addrs)
 }
 
-func (l *Walog) index(index uint64) uint64 {
-	return index - l.memTail
-}
-
 func (l *Walog) writeHdr(head uint64, tail uint64, dsktxnnxt TxnNum, bufs []buf.Buf) {
 	n := uint64(len(bufs))
 	addrs := make([]uint64, n)
@@ -102,7 +98,7 @@ func (l *Walog) writeHdr(head uint64, tail uint64, dsktxnnxt TxnNum, bufs []buf.
 		panic("writeHdr")
 	}
 	for i := tail; i < head; i++ {
-		addrs[l.index(i)] = bufs[l.index(i)].Addr.Blkno
+		addrs[i-tail] = bufs[i-tail].Addr.Blkno
 	}
 	hdr := hdr{head: head, tail: tail, logTxnNxt: dsktxnnxt, addrs: addrs}
 	blk := make(disk.Block, disk.BlockSize)
@@ -118,10 +114,10 @@ func (l *Walog) readHdr() *hdr {
 
 func (l *Walog) recover() {
 	hdr := l.readHdr()
-	for i := hdr.tail; i != hdr.head; i++ {
-		util.DPrintf(1, "recover block %d\n", hdr.addrs[l.index(i)])
-		blk := disk.Read(LOGSTART + l.index(i))
-		disk.Write(hdr.addrs[l.index(i)], blk)
+	for i := uint64(0); i < hdr.head - hdr.tail; i++ {
+		util.DPrintf(1, "recover block %d\n", hdr.addrs[i])
+		blk := disk.Read(LOGSTART + i)
+		disk.Write(hdr.addrs[i], blk)
 	}
 	l.writeHdr(0, 0, 0, []buf.Buf{})
 }
