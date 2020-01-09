@@ -20,7 +20,6 @@ const LOGSTART = uint64(1)
 type Walog struct {
 	// Protects in-memory-related log state
 	memLock   *sync.Mutex
-	logSz     uint64
 	memLog    []buf.Buf // in-memory log [memTail,memHead)
 	memTail   uint64    // tail of in-memory log
 
@@ -40,13 +39,12 @@ func MkLog() *Walog {
 		logLock:     ll,
 		condLogger:  sync.NewCond(ll),
 		condInstall: sync.NewCond(ll),
-		logSz:       fs.HDRADDRS,
 		memLog:      make([]buf.Buf, 0),
 		memTail:     0,
 		diskHead:    0,
 		shutdown:    false,
 	}
-	util.DPrintf(1, "mkLog: size %d\n", l.logSz)
+	util.DPrintf(1, "mkLog: size %d\n", l.LogSz())
 
 	l.recover()
 
@@ -142,7 +140,7 @@ func (l *Walog) readDiskHead() TxnNum {
 //
 
 func (l *Walog) LogSz() uint64 {
-	return l.logSz
+	return fs.HDRADDRS
 }
 
 // Scan log for blkno. If not present, read from disk
@@ -175,7 +173,7 @@ func (l *Walog) Read(blkno uint64) disk.Block {
 // Otherwise, returns the txn for this append.
 func (l *Walog) MemAppend(bufs []*buf.Buf) (TxnNum, bool) {
 	l.memLock.Lock()
-	if uint64(len(bufs)) > l.logSz {
+	if uint64(len(bufs)) > l.LogSz() {
 		l.memLock.Unlock()
 		return 0, false
 	}
@@ -184,7 +182,7 @@ func (l *Walog) MemAppend(bufs []*buf.Buf) (TxnNum, bool) {
 	var txn TxnNum = 0
 	for {
 		l.memLock.Lock()
-		if uint64(len(l.memLog))+uint64(len(bufs)) >= l.logSz {
+		if uint64(len(l.memLog))+uint64(len(bufs)) >= l.LogSz() {
 			util.DPrintf(5, "memAppend: log is full; try again")
 			l.memLock.Unlock()
 			l.condLogger.Signal()
