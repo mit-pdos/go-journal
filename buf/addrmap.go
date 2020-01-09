@@ -10,14 +10,20 @@ type aentry struct {
 }
 
 type AddrMap struct {
+	nelem uint64
 	addrs map[uint64][]*aentry
 }
 
 func MkAddrMap() *AddrMap {
 	a := &AddrMap{
+		nelem: 0,
 		addrs: make(map[uint64][]*aentry),
 	}
 	return a
+}
+
+func (amap *AddrMap) Len() uint64 {
+	return amap.nelem
 }
 
 func (amap *AddrMap) Lookup(addr Addr) interface{} {
@@ -38,6 +44,7 @@ func (amap *AddrMap) Insert(addr Addr, obj interface{}) {
 	aentry := &aentry{addr: addr, obj: obj}
 	blkno := addr.Blkno
 	amap.addrs[blkno] = append(amap.addrs[blkno], aentry)
+	amap.nelem += 1
 }
 
 func (amap *AddrMap) Del(addr Addr) {
@@ -60,6 +67,10 @@ func (amap *AddrMap) Del(addr Addr) {
 	}
 	locks = append(locks[0:index], locks[index+1:]...)
 	amap.addrs[blkno] = locks
+	if len(locks) == 0 {
+		delete(amap.addrs, blkno)
+	}
+	amap.nelem -= 1
 }
 
 func (amap *AddrMap) Apply(f func(Addr, interface{})) {

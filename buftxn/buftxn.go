@@ -5,6 +5,7 @@ import (
 
 	"github.com/mit-pdos/goose-nfsd/buf"
 	"github.com/mit-pdos/goose-nfsd/txn"
+	"github.com/mit-pdos/goose-nfsd/util"
 )
 
 type BufTxn struct {
@@ -23,6 +24,7 @@ func Begin(txn *txn.Txn) *BufTxn {
 }
 
 func (buftxn *BufTxn) ReadBufLocked(addr buf.Addr) *buf.Buf {
+	util.DPrintf(10, "ReadBufLocked: %v\n", addr)
 	first := buftxn.txn.Acquire(addr, buftxn.id)
 	if first {
 		buf := buf.MkBufData(addr)

@@ -36,6 +36,10 @@ func MkTxn(fs *fs.FsSuper) *Txn {
 func (txn *Txn) GetTransId() TransId {
 	txn.mu.Lock()
 	id := txn.nextId
+	if id == 0 { // skip 0
+		txn.nextId += 1
+		id = 1
+	}
 	txn.nextId += 1
 	txn.mu.Unlock()
 	return id
