@@ -167,12 +167,9 @@ func (l *Walog) Read(blkno uint64) disk.Block {
 // Append to in-memory log. Returns false, if bufs don't fit.
 // Otherwise, returns the txn for this append.
 func (l *Walog) MemAppend(bufs []*buf.Buf) (LogPosition, bool) {
-	l.memLock.Lock()
 	if uint64(len(bufs)) > l.LogSz() {
-		l.memLock.Unlock()
 		return 0, false
 	}
-	l.memLock.Unlock()
 
 	var txn LogPosition = 0
 	for {
