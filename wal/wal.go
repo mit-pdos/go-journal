@@ -106,12 +106,15 @@ func (l *Walog) readHdr() *hdr {
 
 func (l *Walog) recover() {
 	hdr := l.readHdr()
+	l.memTail = hdr.tail
+	l.diskHead = TxnNum(hdr.head)
 	for i := uint64(0); i < hdr.head - hdr.tail; i++ {
 		util.DPrintf(1, "recover block %d\n", hdr.addrs[i])
 		blk := disk.Read(LOGSTART + i)
-		disk.Write(hdr.addrs[i], blk)
+		a := buf.MkAddr(hdr.addrs[i], 0, fs.NBITBLOCK)
+		b := buf.MkBuf(a, blk)
+		l.memLog = append(l.memLog, *b)
 	}
-	l.writeHdr(0, 0, []buf.Buf{})
 }
 
 func (l *Walog) memWrite(bufs []*buf.Buf) {
