@@ -11,13 +11,13 @@ import (
 // Logger writes blocks from the in-memory log to the on-disk log
 //
 
-func (l *Walog) logBlocks(memhead uint64, diskhead uint64, bufs []buf.Buf) {
+func (l *Walog) logBlocks(memhead uint64, memtail uint64, diskhead uint64, bufs []buf.Buf) {
 	for i := diskhead; i < memhead; i++ {
 		bindex := i - diskhead
 		blk := bufs[bindex].Blk
 		blkno := bufs[bindex].Addr.Blkno
-		util.DPrintf(5, "logBlocks: %d to log block %d\n", blkno, l.index(i))
-		disk.Write(LOGSTART+l.index(i), blk)
+		util.DPrintf(5, "logBlocks: %d to log block %d\n", blkno, i-memtail)
+		disk.Write(LOGSTART+(i-memtail), blk)
 	}
 }
 
@@ -25,21 +25,22 @@ func (l *Walog) logBlocks(memhead uint64, diskhead uint64, bufs []buf.Buf) {
 func (l *Walog) logAppend() {
 	hdr := l.readHdr()
 	l.memLock.Lock()
-	memhead := l.memHead
 	memtail := l.memTail
 	memlog := l.memLog
-	txnnxt := l.txnNxt
+	memhead := memtail + uint64(len(memlog))
 	if memtail != hdr.tail || memhead < hdr.head {
 		panic("logAppend")
 	}
+
+	//util.DPrintf("logAppend memhead %d memtail %d diskhead %d disktail %d\n", memhead, memtail, hdr.head, hdr.tail)
 	l.memLock.Unlock()
+	newbufs := memlog[hdr.head-memtail:]
+	l.logBlocks(memhead, memtail, hdr.head, newbufs)
 
-	//util.DPrintf("logAppend memhead %d memtail %d diskhead %d disktail %d txnnxt %d\n", memhead, memtail, hdr.head, hdr.tail, txnnxt)
-	newbufs := memlog[l.index(hdr.head):l.index(memhead)]
-	l.logBlocks(memhead, hdr.head, newbufs)
-	l.writeHdr(memhead, memtail, txnnxt, memlog)
+	// XXX we might be logging a stale memtail here..
+	l.writeHdr(memhead, memtail, memlog)
 
-	l.logtxnNxt = txnnxt
+	l.diskHead = TxnNum(memhead)
 }
 
 func (l *Walog) logger() {
