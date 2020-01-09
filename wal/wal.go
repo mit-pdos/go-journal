@@ -72,7 +72,7 @@ func decodeHdr(blk disk.Block) *hdr {
 	dec := marshal.NewDec(blk)
 	hdr.end = LogPosition(dec.GetInt())
 	hdr.start = LogPosition(dec.GetInt())
-	hdr.addrs = dec.GetInts(uint64(hdr.end - hdr.start))
+	hdr.addrs = dec.GetInts(fs.HDRADDRS)
 	return hdr
 }
 
@@ -100,7 +100,7 @@ func (l *Walog) recover() {
 	l.memStart = hdr.start
 	l.diskEnd = hdr.end
 	for pos := hdr.start; pos < hdr.end; pos++ {
-		addr := hdr.addrs[pos - hdr.start]
+		addr := hdr.addrs[uint64(pos) % l.LogSz()]
 		util.DPrintf(1, "recover block %d\n", addr)
 		blk := disk.Read(LOGSTART + (uint64(pos) % l.LogSz()))
 		a := buf.MkAddr(addr, 0, fs.NBITBLOCK)

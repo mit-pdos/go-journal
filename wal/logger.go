@@ -38,9 +38,10 @@ func (l *Walog) logAppend() {
 	l.logBlocks(memend, memstart, h.end, newbufs)
 
 	// XXX we might be logging a stale memstart here..
-	addrs := make([]uint64, len(memlog))
+	addrs := make([]uint64, l.LogSz())
 	for i := uint64(0); i < uint64(len(memlog)); i++ {
-		addrs[i] = memlog[i].Addr.Blkno
+		pos := memstart + LogPosition(i)
+		addrs[uint64(pos) % l.LogSz()] = memlog[i].Addr.Blkno
 	}
 	newh := &hdr{
 		end: memend,
