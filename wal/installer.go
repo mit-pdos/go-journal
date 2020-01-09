@@ -47,7 +47,7 @@ func (l *Walog) logInstall() ([]uint64, TxnNum) {
 	if hdr.tail < l.memTail {
 		panic("logInstall")
 	}
-	l.memLog = l.memLog[l.index(hdr.tail):l.index(l.memHead)]
+	l.memLog = l.memLog[l.index(hdr.tail):]
 	l.memTail = hdr.tail
 	l.dsktxnNxt = hdr.logTxnNxt
 	l.memLock.Unlock()

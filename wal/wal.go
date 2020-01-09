@@ -22,7 +22,6 @@ type Walog struct {
 	memLock   *sync.Mutex
 	logSz     uint64
 	memLog    []buf.Buf // in-memory log [memTail,memHead)
-	memHead   uint64    // head of in-memory log
 	memTail   uint64    // tail of in-memory log
 	txnNxt    TxnNum    // next transaction number
 	dsktxnNxt TxnNum    // next transaction number to install
@@ -45,7 +44,6 @@ func MkLog() *Walog {
 		condInstall: sync.NewCond(ll),
 		logSz:       fs.HDRADDRS,
 		memLog:      make([]buf.Buf, 0),
-		memHead:     0,
 		memTail:     0,
 		txnNxt:      0,
 		logtxnNxt:   0,
@@ -134,7 +132,6 @@ func (l *Walog) memWrite(bufs []*buf.Buf) {
 	for _, buf := range bufs {
 		l.memLog = append(l.memLog, *buf)
 	}
-	l.memHead = l.memHead + uint64(len(bufs))
 }
 
 // Assumes caller holds memLock
@@ -174,15 +171,15 @@ func (l *Walog) Read(blkno uint64) disk.Block {
 	var blk disk.Block
 
 	l.memLock.Lock()
-	if l.memHead > l.memTail {
-		for i := l.memHead - 1; ; i-- {
-			buf := l.memLog[l.index(i)]
+	if len(l.memLog) > 0 {
+		for i := len(l.memLog) - 1; ; i-- {
+			buf := l.memLog[i]
 			if buf.Addr.Blkno == blkno {
 				blk = make([]byte, disk.BlockSize)
 				copy(blk, buf.Blk)
 				break
 			}
-			if i <= l.memTail {
+			if i == 0 {
 				break
 			}
 		}
@@ -207,7 +204,7 @@ func (l *Walog) MemAppend(bufs []*buf.Buf) (TxnNum, bool) {
 	var txn TxnNum = 0
 	for {
 		l.memLock.Lock()
-		if l.index(l.memHead)+uint64(len(bufs)) >= l.logSz {
+		if uint64(len(l.memLog))+uint64(len(bufs)) >= l.logSz {
 			util.DPrintf(5, "memAppend: log is full; try again")
 			l.memLock.Unlock()
 			l.condLogger.Signal()

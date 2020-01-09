@@ -25,10 +25,10 @@ func (l *Walog) logBlocks(memhead uint64, diskhead uint64, bufs []buf.Buf) {
 func (l *Walog) logAppend() {
 	hdr := l.readHdr()
 	l.memLock.Lock()
-	memhead := l.memHead
 	memtail := l.memTail
 	memlog := l.memLog
 	txnnxt := l.txnNxt
+	memhead := memtail + uint64(len(memlog))
 	if memtail != hdr.tail || memhead < hdr.head {
 		panic("logAppend")
 	}
