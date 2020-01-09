@@ -83,18 +83,9 @@ func encodeHdr(hdr hdr, blk disk.Block) {
 	enc.PutInts(hdr.addrs)
 }
 
-func (l *Walog) writeHdr(end LogPosition, start LogPosition, bufs []buf.Buf) {
-	n := uint64(len(bufs))
-	addrs := make([]uint64, n)
-	if n != uint64(end-start) {
-		panic("writeHdr")
-	}
-	for i := start; i < end; i++ {
-		addrs[i-start] = bufs[i-start].Addr.Blkno
-	}
-	hdr := hdr{end: end, start: start, addrs: addrs}
+func (l *Walog) writeHdr(h *hdr) {
 	blk := make(disk.Block, disk.BlockSize)
-	encodeHdr(hdr, blk)
+	encodeHdr(*h, blk)
 	disk.Write(LOGHDR, blk)
 }
 
