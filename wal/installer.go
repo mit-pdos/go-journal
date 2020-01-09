@@ -43,7 +43,7 @@ func (l *Walog) logInstall() ([]uint64, TxnNum) {
 	util.DPrintf(1, "logInstall diskhead %d disktail %d\n", hdr.head, hdr.tail)
 	l.installBlocks(bufs)
 	hdr.tail = hdr.head
-	l.writeHdr(hdr.head, hdr.tail, hdr.logTxnNxt, nil)
+	l.writeHdr(hdr.head, hdr.tail, nil)
 	l.memLock.Lock()
 
 	if hdr.tail < l.memTail {
@@ -52,5 +52,5 @@ func (l *Walog) logInstall() ([]uint64, TxnNum) {
 	l.memLog = l.memLog[hdr.tail-l.memTail:]
 	l.memTail = hdr.tail
 	l.memLock.Unlock()
-	return hdr.addrs, hdr.logTxnNxt
+	return hdr.addrs, TxnNum(hdr.head)
 }

@@ -23,14 +23,13 @@ type Walog struct {
 	logSz     uint64
 	memLog    []buf.Buf // in-memory log [memTail,memHead)
 	memTail   uint64    // tail of in-memory log
-	txnNxt    TxnNum    // next transaction number
 
-	// Protects disk-related log state, incl. header, logtxnNxt,
+	// Protects disk-related log state, incl. header, diskHead,
 	// shutdown
 	logLock     *sync.Mutex
 	condLogger  *sync.Cond
 	condInstall *sync.Cond
-	logtxnNxt   TxnNum // next transaction number to log
+	diskHead    TxnNum // next block to log to disk
 	shutdown    bool
 }
 
@@ -44,8 +43,7 @@ func MkLog() *Walog {
 		logSz:       fs.HDRADDRS,
 		memLog:      make([]buf.Buf, 0),
 		memTail:     0,
-		txnNxt:      0,
-		logtxnNxt:   0,
+		diskHead:    0,
 		shutdown:    false,
 	}
 	util.DPrintf(1, "mkLog: size %d\n", l.logSz)
@@ -64,7 +62,6 @@ func MkLog() *Walog {
 type hdr struct {
 	head      uint64
 	tail      uint64
-	logTxnNxt TxnNum // next txn to log
 	addrs     []uint64
 }
 
@@ -72,13 +69,11 @@ func decodeHdr(blk disk.Block) *hdr {
 	hdr := &hdr{
 		head:      0,
 		tail:      0,
-		logTxnNxt: 0,
 		addrs:     nil,
 	}
 	dec := marshal.NewDec(blk)
 	hdr.head = dec.GetInt()
 	hdr.tail = dec.GetInt()
-	hdr.logTxnNxt = TxnNum(dec.GetInt())
 	hdr.addrs = dec.GetInts(hdr.head - hdr.tail)
 	return hdr
 }
@@ -87,11 +82,10 @@ func encodeHdr(hdr hdr, blk disk.Block) {
 	enc := marshal.NewEnc(blk)
 	enc.PutInt(hdr.head)
 	enc.PutInt(hdr.tail)
-	enc.PutInt(uint64(hdr.logTxnNxt))
 	enc.PutInts(hdr.addrs)
 }
 
-func (l *Walog) writeHdr(head uint64, tail uint64, dsktxnnxt TxnNum, bufs []buf.Buf) {
+func (l *Walog) writeHdr(head uint64, tail uint64, bufs []buf.Buf) {
 	n := uint64(len(bufs))
 	addrs := make([]uint64, n)
 	if n != head-tail {
@@ -100,7 +94,7 @@ func (l *Walog) writeHdr(head uint64, tail uint64, dsktxnnxt TxnNum, bufs []buf.
 	for i := tail; i < head; i++ {
 		addrs[i-tail] = bufs[i-tail].Addr.Blkno
 	}
-	hdr := hdr{head: head, tail: tail, logTxnNxt: dsktxnnxt, addrs: addrs}
+	hdr := hdr{head: head, tail: tail, addrs: addrs}
 	blk := make(disk.Block, disk.BlockSize)
 	encodeHdr(hdr, blk)
 	disk.Write(LOGHDR, blk)
@@ -119,7 +113,7 @@ func (l *Walog) recover() {
 		blk := disk.Read(LOGSTART + i)
 		disk.Write(hdr.addrs[i], blk)
 	}
-	l.writeHdr(0, 0, 0, []buf.Buf{})
+	l.writeHdr(0, 0, []buf.Buf{})
 }
 
 func (l *Walog) memWrite(bufs []*buf.Buf) {
@@ -132,22 +126,14 @@ func (l *Walog) memWrite(bufs []*buf.Buf) {
 // XXX absorp
 func (l *Walog) doMemAppend(bufs []*buf.Buf) TxnNum {
 	l.memWrite(bufs)
-	txn := l.txnNxt
-	l.txnNxt = l.txnNxt + 1
-	return txn
+	txn := l.memTail + uint64(len(l.memLog))
+	return TxnNum(txn)
 }
 
-func (l *Walog) readLogTxnNxt() TxnNum {
+func (l *Walog) readDiskHead() TxnNum {
 	l.logLock.Lock()
-	n := l.logtxnNxt
+	n := l.diskHead
 	l.logLock.Unlock()
-	return n
-}
-
-func (l *Walog) readtxnNxt() TxnNum {
-	l.memLock.Lock()
-	n := l.txnNxt
-	l.memLock.Unlock()
 	return n
 }
 
@@ -216,8 +202,8 @@ func (l *Walog) MemAppend(bufs []*buf.Buf) (TxnNum, bool) {
 // log
 func (l *Walog) LogAppendWait(txn TxnNum) {
 	for {
-		logtxn := l.readLogTxnNxt()
-		if txn < logtxn {
+		diskHead := l.readDiskHead()
+		if txn <= diskHead {
 			break
 		}
 		l.condLogger.Signal()
@@ -228,8 +214,8 @@ func (l *Walog) LogAppendWait(txn TxnNum) {
 // Wait until last started transaction has been appended to log.  If
 // it is logged, then all preceeding transactions are also logged.
 func (l *Walog) WaitFlushMemLog() {
-	n := l.readtxnNxt() - 1
-	l.LogAppendWait(n)
+	n := l.memTail + uint64(len(l.memLog))
+	l.LogAppendWait(TxnNum(n))
 }
 
 // Shutdown logger and installer

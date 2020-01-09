@@ -27,21 +27,20 @@ func (l *Walog) logAppend() {
 	l.memLock.Lock()
 	memtail := l.memTail
 	memlog := l.memLog
-	txnnxt := l.txnNxt
 	memhead := memtail + uint64(len(memlog))
 	if memtail != hdr.tail || memhead < hdr.head {
 		panic("logAppend")
 	}
 
-	//util.DPrintf("logAppend memhead %d memtail %d diskhead %d disktail %d txnnxt %d\n", memhead, memtail, hdr.head, hdr.tail, txnnxt)
+	//util.DPrintf("logAppend memhead %d memtail %d diskhead %d disktail %d\n", memhead, memtail, hdr.head, hdr.tail)
 	l.memLock.Unlock()
 	newbufs := memlog[hdr.head-memtail:]
 	l.logBlocks(memhead, memtail, hdr.head, newbufs)
 
-	// XXX we might be logging a stale memtail or txnnxt here..
-	l.writeHdr(memhead, memtail, txnnxt, memlog)
+	// XXX we might be logging a stale memtail here..
+	l.writeHdr(memhead, memtail, memlog)
 
-	l.logtxnNxt = txnnxt
+	l.diskHead = TxnNum(memhead)
 }
 
 func (l *Walog) logger() {
