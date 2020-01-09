@@ -99,10 +99,11 @@ func (l *Walog) recover() {
 	hdr := l.readHdr()
 	l.memStart = hdr.start
 	l.diskEnd = hdr.end
-	for i := uint64(0); i < uint64(hdr.end-hdr.start); i++ {
-		util.DPrintf(1, "recover block %d\n", hdr.addrs[i])
-		blk := disk.Read(LOGSTART + i)
-		a := buf.MkAddr(hdr.addrs[i], 0, fs.NBITBLOCK)
+	for pos := hdr.start; pos < hdr.end; pos++ {
+		addr := hdr.addrs[pos - hdr.start]
+		util.DPrintf(1, "recover block %d\n", addr)
+		blk := disk.Read(LOGSTART + (uint64(pos) % l.LogSz()))
+		a := buf.MkAddr(addr, 0, fs.NBITBLOCK)
 		b := buf.MkBuf(a, blk)
 		l.memLog = append(l.memLog, *b)
 	}

@@ -12,12 +12,12 @@ import (
 //
 
 func (l *Walog) logBlocks(memend LogPosition, memstart LogPosition, diskend LogPosition, bufs []buf.Buf) {
-	for i := diskend; i < memend; i++ {
-		bindex := i - diskend
-		blk := bufs[bindex].Blk
-		blkno := bufs[bindex].Addr.Blkno
-		util.DPrintf(5, "logBlocks: %d to log block %d\n", blkno, i-memstart)
-		disk.Write(LOGSTART+uint64(i-memstart), blk)
+	for pos := diskend; pos < memend; pos++ {
+		buf := bufs[pos - diskend]
+		blk := buf.Blk
+		blkno := buf.Addr.Blkno
+		util.DPrintf(5, "logBlocks: %d to log block %d\n", blkno, pos)
+		disk.Write(LOGSTART + (uint64(pos) % l.LogSz()), blk)
 	}
 }
 
