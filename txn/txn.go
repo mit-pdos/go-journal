@@ -106,7 +106,7 @@ func (txn *Txn) installBufs(bufs []*buf.Buf) []*buf.Buf {
 
 // Acquires the commit log, installs the txn's buffers into their
 // blocks, and appends the blocks to the in-memory log.
-func (txn *Txn) doCommit(bufs []*buf.Buf, abort bool) (wal.TxnNum, bool) {
+func (txn *Txn) doCommit(bufs []*buf.Buf, abort bool) (wal.LogPosition, bool) {
 	txn.mu.Lock()
 
 	blks := txn.installBufs(bufs)
