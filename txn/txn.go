@@ -48,7 +48,7 @@ func (txn *Txn) Load(buf *buf.Buf) {
 }
 
 // Lock a disk object
-func (txn *Txn) Lock(addr buf.Addr, id TransId) bool {
+func (txn *Txn) Acquire(addr buf.Addr, id TransId) bool {
 	var first bool = false
 
 	// is addr already locked by this transaction?

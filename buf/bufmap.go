@@ -21,7 +21,10 @@ func (bmap *BufMap) Insert(buf *Buf) {
 
 func (bmap *BufMap) Lookup(addr Addr) *Buf {
 	e := bmap.addrs.Lookup(addr)
-	return e.(*Buf)
+	if e != nil {
+		return e.(*Buf)
+	}
+	return nil
 }
 
 func (bmap *BufMap) Del(addr Addr) {

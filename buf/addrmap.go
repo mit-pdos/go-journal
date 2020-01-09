@@ -47,7 +47,7 @@ func (amap *AddrMap) Del(addr Addr) {
 	blkno := addr.Blkno
 	locks, found := amap.addrs[blkno]
 	if !found {
-		panic("release")
+		return
 	}
 	for i, l := range locks {
 		if l.addr.eq(addr) {
@@ -56,7 +56,7 @@ func (amap *AddrMap) Del(addr Addr) {
 		}
 	}
 	if !found {
-		panic("release")
+		return
 	}
 	locks = append(locks[0:index], locks[index+1:]...)
 	amap.addrs[blkno] = locks
