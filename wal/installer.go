@@ -12,7 +12,7 @@ import (
 //
 
 func (l *Walog) installer() {
-	l.logLock.Lock()
+	l.memLock.Lock()
 	for !l.shutdown {
 		blkcount, txn := l.logInstall()
 		if blkcount > 0 {
@@ -20,7 +20,7 @@ func (l *Walog) installer() {
 		}
 		l.condInstall.Wait()
 	}
-	l.logLock.Unlock()
+	l.memLock.Unlock()
 }
 
 func (l *Walog) installBlocks(bufs []buf.Buf) {
@@ -36,10 +36,14 @@ func (l *Walog) installBlocks(bufs []buf.Buf) {
 // Installer holds logLock
 // XXX absorp
 func (l *Walog) logInstall() (uint64, LogPosition) {
-	l.memLock.Lock()
 	installEnd := l.diskEnd
 	bufs := l.memLog[:installEnd-l.memStart]
+	if len(bufs) == 0 {
+		return 0, installEnd
+	}
+
 	l.memLock.Unlock()
+
 	util.DPrintf(1, "logInstall up to %d\n", installEnd)
 	l.installBlocks(bufs)
 	h := &hdr2{
@@ -53,7 +57,6 @@ func (l *Walog) logInstall() (uint64, LogPosition) {
 	}
 	l.memLog = l.memLog[installEnd-l.memStart:]
 	l.memStart = installEnd
-	l.memLock.Unlock()
 
 	return uint64(len(bufs)), installEnd
 }

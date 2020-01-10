@@ -23,15 +23,19 @@ func (l *Walog) logBlocks(memend LogPosition, memstart LogPosition, diskend LogP
 
 // Logger holds logLock
 func (l *Walog) logAppend() {
-	l.memLock.Lock()
 	memstart := l.memStart
 	memlog := l.memLog
 	memend := memstart + LogPosition(len(memlog))
 	diskend := l.diskEnd
+	newbufs := memlog[diskend-memstart:]
+	if len(newbufs) == 0 {
+		return
+	}
+
+	l.memLock.Unlock()
 
 	//util.DPrintf("logAppend memend %d memstart %d diskend %d diskstart %d\n", memend, memstart, h.end, h.start)
-	l.memLock.Unlock()
-	newbufs := memlog[diskend-memstart:]
+
 	l.logBlocks(memend, memstart, diskend, newbufs)
 
 	addrs := make([]uint64, l.LogSz())
@@ -45,14 +49,17 @@ func (l *Walog) logAppend() {
 	}
 	l.writeHdr(newh)
 
+	l.memLock.Lock()
 	l.diskEnd = memend
+	l.condLogger.Broadcast()
+	l.condInstall.Broadcast()
 }
 
 func (l *Walog) logger() {
-	l.logLock.Lock()
+	l.memLock.Lock()
 	for !l.shutdown {
 		l.logAppend()
 		l.condLogger.Wait()
 	}
-	l.logLock.Unlock()
+	l.memLock.Unlock()
 }

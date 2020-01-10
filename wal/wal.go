@@ -19,27 +19,23 @@ const LOGHDR2 = uint64(1)
 const LOGSTART = uint64(2)
 
 type Walog struct {
-	// Protects in-memory-related log state
 	memLock  *sync.Mutex
-	memLog   []buf.Buf // in-memory log starting with memStart
-	memStart LogPosition
 
-	// Protects disk-related log state, incl. header, diskEnd,
-	// shutdown
-	logLock     *sync.Mutex
 	condLogger  *sync.Cond
 	condInstall *sync.Cond
-	diskEnd     LogPosition // next block to log to disk
-	shutdown    bool
+
+	memLog   []buf.Buf // in-memory log starting with memStart
+	memStart LogPosition
+	diskEnd  LogPosition // next block to log to disk
+	shutdown bool
 }
 
 func MkLog() *Walog {
-	ll := new(sync.Mutex)
+	ml := new(sync.Mutex)
 	l := &Walog{
-		memLock:     new(sync.Mutex),
-		logLock:     ll,
-		condLogger:  sync.NewCond(ll),
-		condInstall: sync.NewCond(ll),
+		memLock:     ml,
+		condLogger:  sync.NewCond(ml),
+		condInstall: sync.NewCond(ml),
 		memLog:      make([]buf.Buf, 0),
 		memStart:    0,
 		diskEnd:     0,
@@ -142,6 +138,7 @@ func (l *Walog) memWrite(bufs []*buf.Buf) {
 	for _, buf := range bufs {
 		l.memLog = append(l.memLog, *buf)
 	}
+	l.condLogger.Broadcast()
 }
 
 // Assumes caller holds memLock
@@ -150,13 +147,6 @@ func (l *Walog) doMemAppend(bufs []*buf.Buf) LogPosition {
 	l.memWrite(bufs)
 	txn := l.memStart + LogPosition(len(l.memLog))
 	return txn
-}
-
-func (l *Walog) readDiskEnd() LogPosition {
-	l.logLock.Lock()
-	n := l.diskEnd
-	l.logLock.Unlock()
-	return n
 }
 
 //
@@ -206,8 +196,8 @@ func (l *Walog) MemAppend(bufs []*buf.Buf) (LogPosition, bool) {
 		if uint64(l.memStart)+uint64(len(l.memLog))-uint64(l.diskEnd)+uint64(len(bufs)) > l.LogSz() {
 			util.DPrintf(5, "memAppend: log is full; try again")
 			l.memLock.Unlock()
-			l.condLogger.Signal()
-			l.condInstall.Signal()
+			l.condLogger.Broadcast()
+			l.condInstall.Broadcast()
 			continue
 		}
 		txn = l.doMemAppend(bufs)
@@ -220,26 +210,31 @@ func (l *Walog) MemAppend(bufs []*buf.Buf) (LogPosition, bool) {
 // Wait until logger has appended in-memory log through txn to on-disk
 // log
 func (l *Walog) LogAppendWait(txn LogPosition) {
+	l.memLock.Lock()
 	for {
-		diskEnd := l.readDiskEnd()
-		if txn <= diskEnd {
+		if txn <= l.diskEnd {
 			break
 		}
-		l.condLogger.Signal()
-		continue
+		l.condLogger.Wait()
 	}
+	l.memLock.Unlock()
 }
 
 // Wait until last started transaction has been appended to log.  If
 // it is logged, then all preceeding transactions are also logged.
 func (l *Walog) WaitFlushMemLog() {
+	l.memLock.Lock()
 	n := l.memStart + LogPosition(len(l.memLog))
+	l.memLock.Unlock()
+
 	l.LogAppendWait(n)
 }
 
 // Shutdown logger and installer
 func (l *Walog) Shutdown() {
-	l.logLock.Lock()
+	l.memLock.Lock()
 	l.shutdown = true
-	l.logLock.Unlock()
+	l.condLogger.Broadcast()
+	l.condInstall.Broadcast()
+	l.memLock.Unlock()
 }
