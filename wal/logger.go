@@ -23,6 +23,16 @@ func (l *Walog) logBlocks(memend LogPosition, memstart LogPosition, diskend LogP
 
 // Logger holds logLock
 func (l *Walog) logAppend() {
+	// Wait until there is sufficient space on disk for the entire
+	// in-memory log (i.e., the installer must catch up).
+	for {
+		if uint64(len(l.memLog)) <= l.LogSz() {
+			break
+		}
+
+		l.condInstall.Wait()
+	}
+
 	memstart := l.memStart
 	memlog := l.memLog
 	memend := memstart + LogPosition(len(memlog))

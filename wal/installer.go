@@ -57,6 +57,7 @@ func (l *Walog) logInstall() (uint64, LogPosition) {
 	}
 	l.memLog = l.memLog[installEnd-l.memStart:]
 	l.memStart = installEnd
+	l.condInstall.Broadcast()
 
 	return uint64(len(bufs)), installEnd
 }

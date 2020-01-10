@@ -191,19 +191,17 @@ func (l *Walog) MemAppend(bufs []*buf.Buf) (LogPosition, bool) {
 	}
 
 	var txn LogPosition = 0
+	l.memLock.Lock()
 	for {
-		l.memLock.Lock()
 		if uint64(l.memStart)+uint64(len(l.memLog))-uint64(l.diskEnd)+uint64(len(bufs)) > l.LogSz() {
 			util.DPrintf(5, "memAppend: log is full; try again")
-			l.memLock.Unlock()
-			l.condLogger.Broadcast()
-			l.condInstall.Broadcast()
+			l.condLogger.Wait()
 			continue
 		}
 		txn = l.doMemAppend(bufs)
-		l.memLock.Unlock()
 		break
 	}
+	l.memLock.Unlock()
 	return txn, true
 }
 
