@@ -19,7 +19,7 @@ const LOGHDR2 = uint64(1)
 const LOGSTART = uint64(2)
 
 type Walog struct {
-	memLock  *sync.Mutex
+	memLock *sync.Mutex
 
 	condLogger  *sync.Cond
 	condInstall *sync.Cond
@@ -125,7 +125,7 @@ func (l *Walog) recover() {
 	l.memStart = h2.start
 	l.diskEnd = h.end
 	for pos := h2.start; pos < h.end; pos++ {
-		addr := h.addrs[uint64(pos) % l.LogSz()]
+		addr := h.addrs[uint64(pos)%l.LogSz()]
 		util.DPrintf(1, "recover block %d\n", addr)
 		blk := disk.Read(LOGSTART + (uint64(pos) % l.LogSz()))
 		a := buf.MkAddr(addr, 0, fs.NBITBLOCK)

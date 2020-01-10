@@ -13,11 +13,11 @@ import (
 
 func (l *Walog) logBlocks(memend LogPosition, memstart LogPosition, diskend LogPosition, bufs []buf.Buf) {
 	for pos := diskend; pos < memend; pos++ {
-		buf := bufs[pos - diskend]
+		buf := bufs[pos-diskend]
 		blk := buf.Blk
 		blkno := buf.Addr.Blkno
 		util.DPrintf(5, "logBlocks: %d to log block %d\n", blkno, pos)
-		disk.Write(LOGSTART + (uint64(pos) % l.LogSz()), blk)
+		disk.Write(LOGSTART+(uint64(pos)%l.LogSz()), blk)
 	}
 }
 
@@ -41,10 +41,10 @@ func (l *Walog) logAppend() {
 	addrs := make([]uint64, l.LogSz())
 	for i := uint64(0); i < uint64(len(memlog)); i++ {
 		pos := memstart + LogPosition(i)
-		addrs[uint64(pos) % l.LogSz()] = memlog[i].Addr.Blkno
+		addrs[uint64(pos)%l.LogSz()] = memlog[i].Addr.Blkno
 	}
 	newh := &hdr{
-		end: memend,
+		end:   memend,
 		addrs: addrs,
 	}
 	l.writeHdr(newh)
