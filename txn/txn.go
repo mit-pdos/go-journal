@@ -52,17 +52,13 @@ func (txn *Txn) Load(buf *buf.Buf) {
 }
 
 // Lock a disk object
-func (txn *Txn) Acquire(addr buf.Addr, id TransId) bool {
-	var first bool = false
+func (txn *Txn) Acquire(addr buf.Addr, id TransId) {
+	txn.locks.acquire(addr, id)
+}
 
-	// is addr already locked by this transaction?
-	locked := txn.locks.isLocked(addr, id)
-	if !locked {
-		txn.locks.acquire(addr, id)
-		first = true
-	}
-	util.DPrintf(10, "%d: Locked %v\n", id, addr)
-	return first
+// Lock a disk object
+func (txn *Txn) IsLocked(addr buf.Addr, id TransId) bool {
+	return txn.locks.isLocked(addr, id)
 }
 
 // Release lock on buf of trans id

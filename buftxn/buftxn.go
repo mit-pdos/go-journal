@@ -25,14 +25,14 @@ func Begin(txn *txn.Txn) *BufTxn {
 
 func (buftxn *BufTxn) ReadBufLocked(addr buf.Addr) *buf.Buf {
 	util.DPrintf(10, "ReadBufLocked: %v\n", addr)
-	first := buftxn.txn.Acquire(addr, buftxn.id)
-	if first {
-		buf := buf.MkBufData(addr)
-		buftxn.txn.Load(buf)
-		buftxn.bufs.Insert(buf)
+
+	// does this transaction already have addr locked?  (e.g.,
+	// read the inode from the inode cache, after locking it)
+	locked := buftxn.txn.IsLocked(addr, buftxn.id)
+	if !locked {
+		buftxn.txn.Acquire(addr, buftxn.id)
 	}
-	b := buftxn.bufs.Lookup(addr)
-	return b
+	return buftxn.ReadBuf(addr)
 }
 
 func (buftxn *BufTxn) ReadBuf(addr buf.Addr) *buf.Buf {
