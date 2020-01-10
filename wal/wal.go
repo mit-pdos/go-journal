@@ -159,7 +159,7 @@ func (l *Walog) LogSz() uint64 {
 
 // Scan log for blkno. If not present, read from disk
 // XXX use map
-func (l *Walog) Read(blkno uint64) disk.Block {
+func (l *Walog) readMemLog(blkno uint64) disk.Block {
 	var blk disk.Block
 
 	l.memLock.Lock()
@@ -177,9 +177,20 @@ func (l *Walog) Read(blkno uint64) disk.Block {
 		}
 	}
 	l.memLock.Unlock()
-	if blk == nil {
+
+	return blk
+}
+
+func (l *Walog) Read(blkno uint64) disk.Block {
+	var blk disk.Block
+
+	blkMem := l.readMemLog(blkno)
+	if blkMem != nil {
+		blk = blkMem
+	} else {
 		blk = disk.Read(blkno)
 	}
+
 	return blk
 }
 
