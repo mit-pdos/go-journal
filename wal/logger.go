@@ -23,21 +23,17 @@ func (l *Walog) logBlocks(memend LogPosition, memstart LogPosition, diskend LogP
 
 // Logger holds logLock
 func (l *Walog) logAppend() {
-	h := l.readHdr()
 	l.memLock.Lock()
 	memstart := l.memStart
 	memlog := l.memLog
 	memend := memstart + LogPosition(len(memlog))
-	if memstart != h.start || memend < h.end {
-		panic("logAppend")
-	}
+	diskend := l.diskEnd
 
 	//util.DPrintf("logAppend memend %d memstart %d diskend %d diskstart %d\n", memend, memstart, h.end, h.start)
 	l.memLock.Unlock()
-	newbufs := memlog[h.end-memstart:]
-	l.logBlocks(memend, memstart, h.end, newbufs)
+	newbufs := memlog[diskend-memstart:]
+	l.logBlocks(memend, memstart, diskend, newbufs)
 
-	// XXX we might be logging a stale memstart here..
 	addrs := make([]uint64, l.LogSz())
 	for i := uint64(0); i < uint64(len(memlog)); i++ {
 		pos := memstart + LogPosition(i)
@@ -45,7 +41,6 @@ func (l *Walog) logAppend() {
 	}
 	newh := &hdr{
 		end: memend,
-		start: memstart,
 		addrs: addrs,
 	}
 	l.writeHdr(newh)

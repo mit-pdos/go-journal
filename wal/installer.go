@@ -36,21 +36,24 @@ func (l *Walog) installBlocks(bufs []buf.Buf) {
 // Installer holds logLock
 // XXX absorp
 func (l *Walog) logInstall() (uint64, LogPosition) {
-	hdr := l.readHdr()
 	l.memLock.Lock()
-	bufs := l.memLog[:hdr.end-l.memStart]
+	installEnd := l.diskEnd
+	bufs := l.memLog[:installEnd-l.memStart]
 	l.memLock.Unlock()
-	util.DPrintf(1, "logInstall diskend %d diskstart %d\n", hdr.end, hdr.start)
+	util.DPrintf(1, "logInstall up to %d\n", installEnd)
 	l.installBlocks(bufs)
-	hdr.start = hdr.end
-	l.writeHdr(hdr)
-	l.memLock.Lock()
+	h := &hdr2{
+		start: installEnd,
+	}
+	l.writeHdr2(h)
 
-	if hdr.end < l.memStart {
+	l.memLock.Lock()
+	if installEnd < l.memStart {
 		panic("logInstall")
 	}
-	l.memLog = l.memLog[hdr.end-l.memStart:]
-	l.memStart = hdr.end
+	l.memLog = l.memLog[installEnd-l.memStart:]
+	l.memStart = installEnd
 	l.memLock.Unlock()
-	return uint64(len(bufs)), hdr.end
+
+	return uint64(len(bufs)), installEnd
 }

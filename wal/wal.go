@@ -15,7 +15,8 @@ import (
 type LogPosition uint64
 
 const LOGHDR = uint64(0)
-const LOGSTART = uint64(1)
+const LOGHDR2 = uint64(1)
+const LOGSTART = uint64(2)
 
 type Walog struct {
 	// Protects in-memory-related log state
@@ -56,31 +57,46 @@ func MkLog() *Walog {
 	return l
 }
 
-// On-disk header in first block of log
+// On-disk header in the first block of the log
 type hdr struct {
 	end   LogPosition
-	start LogPosition
 	addrs []uint64
 }
 
 func decodeHdr(blk disk.Block) *hdr {
-	hdr := &hdr{
+	h := &hdr{
 		end:   0,
-		start: 0,
 		addrs: nil,
 	}
 	dec := marshal.NewDec(blk)
-	hdr.end = LogPosition(dec.GetInt())
-	hdr.start = LogPosition(dec.GetInt())
-	hdr.addrs = dec.GetInts(fs.HDRADDRS)
-	return hdr
+	h.end = LogPosition(dec.GetInt())
+	h.addrs = dec.GetInts(fs.HDRADDRS)
+	return h
 }
 
-func encodeHdr(hdr hdr, blk disk.Block) {
+func encodeHdr(h hdr, blk disk.Block) {
 	enc := marshal.NewEnc(blk)
-	enc.PutInt(uint64(hdr.end))
-	enc.PutInt(uint64(hdr.start))
-	enc.PutInts(hdr.addrs)
+	enc.PutInt(uint64(h.end))
+	enc.PutInts(h.addrs)
+}
+
+// On-disk header in the second block of the log
+type hdr2 struct {
+	start LogPosition
+}
+
+func decodeHdr2(blk disk.Block) *hdr2 {
+	h := &hdr2{
+		start: 0,
+	}
+	dec := marshal.NewDec(blk)
+	h.start = LogPosition(dec.GetInt())
+	return h
+}
+
+func encodeHdr2(h hdr2, blk disk.Block) {
+	enc := marshal.NewEnc(blk)
+	enc.PutInt(uint64(h.start))
 }
 
 func (l *Walog) writeHdr(h *hdr) {
@@ -91,16 +107,29 @@ func (l *Walog) writeHdr(h *hdr) {
 
 func (l *Walog) readHdr() *hdr {
 	blk := disk.Read(LOGHDR)
-	hdr := decodeHdr(blk)
-	return hdr
+	h := decodeHdr(blk)
+	return h
+}
+
+func (l *Walog) writeHdr2(h *hdr2) {
+	blk := make(disk.Block, disk.BlockSize)
+	encodeHdr2(*h, blk)
+	disk.Write(LOGHDR2, blk)
+}
+
+func (l *Walog) readHdr2() *hdr2 {
+	blk := disk.Read(LOGHDR2)
+	h := decodeHdr2(blk)
+	return h
 }
 
 func (l *Walog) recover() {
-	hdr := l.readHdr()
-	l.memStart = hdr.start
-	l.diskEnd = hdr.end
-	for pos := hdr.start; pos < hdr.end; pos++ {
-		addr := hdr.addrs[uint64(pos) % l.LogSz()]
+	h := l.readHdr()
+	h2 := l.readHdr2()
+	l.memStart = h2.start
+	l.diskEnd = h.end
+	for pos := h2.start; pos < h.end; pos++ {
+		addr := h.addrs[uint64(pos) % l.LogSz()]
 		util.DPrintf(1, "recover block %d\n", addr)
 		blk := disk.Read(LOGSTART + (uint64(pos) % l.LogSz()))
 		a := buf.MkAddr(addr, 0, fs.NBITBLOCK)
