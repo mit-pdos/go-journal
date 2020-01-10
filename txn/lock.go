@@ -75,7 +75,6 @@ func (lmap *lockMap) lookupdel(addr buf.Addr) *sleepLock {
 
 func (lmap *lockMap) isLocked(addr buf.Addr, id TransId) bool {
 	locked := false
-	util.DPrintf(15, "%d: islocked?: %v\n", id, addr)
 	sleepLock := lmap.lookupadd(addr)
 	sleepLock.mu.Lock()
 	if sleepLock.holder == id {
