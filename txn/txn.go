@@ -67,35 +67,59 @@ func (txn *Txn) Release(addr buf.Addr, id TransId) {
 	txn.locks.release(addr, id)
 }
 
+// Last buf that has data for same block
+func lastBuf(bufs []*buf.Buf) (uint64, bool) {
+	var dirty = false
+	i := uint64(0)
+	blkno := bufs[i].Addr.Blkno
+	l := uint64(len(bufs))
+	for ; i < l && blkno == bufs[i].Addr.Blkno; i++ {
+		if bufs[i].IsDirty() {
+			dirty = true
+		}
+	}
+	return i, dirty
+}
+
+// Install bufs that contain data for the same block
+func (txn *Txn) installBlock(blk disk.Block, bufs []*buf.Buf) {
+	l := len(bufs)
+	data := make(disk.Block, disk.BlockSize)
+	copy(data, blk)
+	for i := 0; i < l; i++ {
+		util.DPrintf(5, "installBlock %v\n", bufs[i])
+		bufs[i].Install(data)
+	}
+}
+
 // Installs the txn's bufs into their blocks and returns the blocks.
 // A buf may only partially update a disk block. Assume caller holds
 // commit lock.
 func (txn *Txn) installBufs(bufs []*buf.Buf) []*buf.Buf {
 	var blks = make([]*buf.Buf, 0)
-
 	sort.Slice(bufs, func(i, j int) bool {
 		return bufs[i].Addr.Blkno < bufs[j].Addr.Blkno
 	})
-	l := len(bufs)
-	for i := 0; i < l; {
-		blkno := bufs[i].Addr.Blkno
-		blk := txn.log.Read(blkno)
-		data := make([]byte, disk.BlockSize)
-		copy(data, blk)
-		var dirty = false
-		// several bufs may contain data for different parts of the same block
-		for ; i < l && blkno == bufs[i].Addr.Blkno; i++ {
-			util.DPrintf(5, "computeBlks %d %v\n", blkno, bufs[i])
-			if bufs[i].Install(data) {
-				dirty = true
-			}
-		}
+	l := uint64(len(bufs))
+	for i := uint64(0); i < l; {
+		n, dirty := lastBuf(bufs[i:])
+		util.DPrintf(0, "lastbuf %v %d %v\n", bufs[i].Addr, n, dirty)
 		if dirty {
-			// construct a buf that has all changes to blkno
-			b := buf.MkBuf(txn.fs.Block2addr(blkno), data)
-			blks = append(blks, b)
+			var blk []byte
+			blkno := bufs[i].Addr.Blkno
+			if txn.fs.DiskBlockSize(bufs[i].Addr) {
+				// overwrite complete block
+				blk = bufs[i].Blk
+			} else {
+				// read block blkno and install
+				blk = txn.log.Read(blkno)
+				txn.installBlock(blk, bufs[i:i+n])
+			}
+			b := buf.MkBuf(txn.fs.Block2addr(blkno), blk)
 			b.SetDirty()
+			blks = append(blks, b)
 		}
+		i = i + n
 	}
 	return blks
 }

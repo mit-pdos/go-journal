@@ -16,6 +16,9 @@ type Buf struct {
 }
 
 func MkBuf(addr Addr, blk disk.Block) *Buf {
+	if uint64(len(blk)) > disk.BlockSize {
+		panic("mkbuf")
+	}
 	b := &Buf{
 		Addr:  addr,
 		Blk:   blk,
@@ -25,7 +28,8 @@ func MkBuf(addr Addr, blk disk.Block) *Buf {
 }
 
 func MkBufData(addr Addr) *Buf {
-	data := make([]byte, addr.Sz)
+	sz := util.RoundUp(addr.Sz, 8)
+	data := make([]byte, sz)
 	buf := MkBuf(addr, data)
 	return buf
 }
@@ -91,17 +95,15 @@ func copyBits(src []byte, dst []byte, dstoff uint64, nbit uint64) {
 }
 
 // Install the bits from buf into blk, if buf has been modified
-func (buf *Buf) Install(blk disk.Block) bool {
-	if buf.dirty {
-		copyBits(buf.Blk, blk, buf.Addr.Off, buf.Addr.Sz)
-	}
-	return buf.dirty
+func (buf *Buf) Install(blk disk.Block) {
+	copyBits(buf.Blk, blk, buf.Addr.Off, buf.Addr.Sz)
 }
 
 // Load the bits of a disk block into buf, as specified by addr
 func (buf *Buf) Load(blk disk.Block) {
 	byte := buf.Addr.Off / 8
 	sz := util.RoundUp(buf.Addr.Sz, 8)
+	util.DPrintf(0, "Load %v sz %v", buf.Addr, sz)
 	copy(buf.Blk, blk[byte:byte+sz])
 }
 
@@ -114,6 +116,10 @@ func (buf *Buf) WriteDirect() {
 		buf.Install(blk)
 		disk.Write(buf.Addr.Blkno, blk)
 	}
+}
+
+func (buf *Buf) IsDirty() bool {
+	return buf.dirty
 }
 
 func (buf *Buf) SetDirty() {
