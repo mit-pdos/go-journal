@@ -103,7 +103,6 @@ func (buf *Buf) Install(blk disk.Block) {
 func (buf *Buf) Load(blk disk.Block) {
 	byte := buf.Addr.Off / 8
 	sz := util.RoundUp(buf.Addr.Sz, 8)
-	util.DPrintf(0, "Load %v sz %v", buf.Addr, sz)
 	copy(buf.Blk, blk[byte:byte+sz])
 }
 

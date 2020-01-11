@@ -84,11 +84,9 @@ func lastBuf(bufs []*buf.Buf) (uint64, bool) {
 // Install bufs that contain data for the same block
 func (txn *Txn) installBlock(blk disk.Block, bufs []*buf.Buf) {
 	l := len(bufs)
-	data := make(disk.Block, disk.BlockSize)
-	copy(data, blk)
 	for i := 0; i < l; i++ {
 		util.DPrintf(5, "installBlock %v\n", bufs[i])
-		bufs[i].Install(data)
+		bufs[i].Install(blk)
 	}
 }
 
@@ -103,7 +101,7 @@ func (txn *Txn) installBufs(bufs []*buf.Buf) []*buf.Buf {
 	l := uint64(len(bufs))
 	for i := uint64(0); i < l; {
 		n, dirty := lastBuf(bufs[i:])
-		util.DPrintf(0, "lastbuf %v %d %v\n", bufs[i].Addr, n, dirty)
+		util.DPrintf(15, "lastbuf %v %d %v\n", bufs[i].Addr, n, dirty)
 		if dirty {
 			var blk []byte
 			blkno := bufs[i].Addr.Blkno
