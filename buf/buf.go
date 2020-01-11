@@ -103,7 +103,8 @@ func (buf *Buf) Install(blk disk.Block) {
 func (buf *Buf) Load(blk disk.Block) {
 	byte := buf.Addr.Off / 8
 	sz := util.RoundUp(buf.Addr.Sz, 8)
-	copy(buf.Blk, blk[byte:byte+sz])
+	buf.Blk = blk[byte : byte+sz]
+	// copy(buf.Blk, blk[byte:byte+sz])
 }
 
 func (buf *Buf) WriteDirect() {
