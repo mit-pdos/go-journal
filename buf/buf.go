@@ -38,8 +38,8 @@ func (buf *Buf) String() string {
 	return fmt.Sprintf("%v %v", buf.Addr, buf.dirty)
 }
 
+// copy nbit bits from src to dst, starting to bit. return new dst.
 func installBits(src byte, dst byte, bit uint64, nbit uint64) byte {
-	util.DPrintf(20, "installBits: src 0x%x dst 0x%x %d sz %d\n", src, dst, bit, nbit)
 	var new byte = dst
 	for i := bit; i < bit+nbit; i++ {
 		if src&(1<<i) == dst&(1<<i) {
@@ -47,56 +47,43 @@ func installBits(src byte, dst byte, bit uint64, nbit uint64) byte {
 		}
 		if src&(1<<i) == 0 {
 			// dst is 1, but should be 0
-			new = new & ^(1 << bit)
+			new = new & ^(1 << i)
 		} else {
 			// dst is 0, but should be 1
-			new = new | (1 << bit)
+			new = new | (1 << i)
 		}
 	}
-	util.DPrintf(20, "installBits -> 0x%x\n", new)
 	return new
 }
 
 // copy nbits from src to dst, at dstoff in destination. dstoff is in bits.
 func copyBits(src []byte, dst []byte, dstoff uint64, nbit uint64) {
-	var n uint64 = nbit
-	var off uint64 = 0
-	var dstbyte uint64 = dstoff / 8
-
-	util.DPrintf(20, "copyBits dstoff %d nbit %d\n", dstoff, nbit)
-	// copy few last bits in first byte, if not byte aligned
-	if dstoff%8 != 0 {
-		bit := dstoff % 8
-		nbit := util.Min(8-bit, n)
-		srcbyte := src[0]
-		dst[dstbyte] = installBits(srcbyte, dst[dstbyte], bit, nbit)
-		off += 8
-		dstbyte += 1
-		n -= nbit
+	for i := uint64(0); i < nbit; i++ {
+		dstbyte := (dstoff + i) / 8
+		dst[dstbyte] = installBits(src[i/8], dst[dstbyte], (dstoff+i)%8, 1)
 	}
+}
 
-	// copy bytes
-	sz := n / 8
-	for i := off; i < off+sz; i++ {
-		dst[i+dstbyte] = src[i]
+// copy nbits from src to dst. dstoff is byte aligned, so can copy byte at
+// the time
+func copyBitsAligned(src []byte, dst []byte, dstoff uint64, nbit uint64) {
+	sz := nbit / 8
+	for i := uint64(0); i < sz; i++ {
+		dst[(dstoff/8)+i] = src[i]
 	}
-	n -= sz * 8
-	off += sz * 8
-
-	// copy remaining bits
-	if n > 0 {
-		lastbyte := off / 8
-		srcbyte := src[lastbyte]
-		d := dst[lastbyte+dstbyte]
-		dst[lastbyte+dstbyte] = installBits(srcbyte, d, 0, n)
-	}
-
+	nbit -= sz * 8
+	// copy few remaining bits
+	copyBits(src[sz:], dst[(dstoff/8)+sz:], 0, nbit)
 }
 
 // Install the bits from buf into blk, if buf has been modified
 func (buf *Buf) Install(blk disk.Block) {
 	util.DPrintf(20, "install %v\n", blk)
-	copyBits(buf.Blk, blk, buf.Addr.Off, buf.Addr.Sz)
+	if buf.Addr.Off%8 == 0 {
+		copyBitsAligned(buf.Blk, blk, buf.Addr.Off, buf.Addr.Sz)
+	} else {
+		copyBits(buf.Blk, blk, buf.Addr.Off, buf.Addr.Sz)
+	}
 	util.DPrintf(20, "install -> %v\n", blk)
 }
 
