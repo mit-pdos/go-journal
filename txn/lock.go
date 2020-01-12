@@ -58,7 +58,9 @@ func (lmap *lockMap) lookupdel(addr buf.Addr) *sleepLock {
 	lmap.mu.Lock()
 	e := lmap.addrs.Lookup(addr)
 	if e == nil {
-		panic("lookupdel")
+		util.DPrintf(5, "already deleted addr %v\n", addr)
+		lmap.mu.Unlock()
+		return nil
 	}
 	sleepLock := e.(*sleepLock)
 	sleepLock.mu.Lock()
@@ -67,7 +69,7 @@ func (lmap *lockMap) lookupdel(addr buf.Addr) *sleepLock {
 	if del {
 		lmap.addrs.Del(addr)
 	} else {
-		util.DPrintf(0, "don't del addr %v\n", addr)
+		util.DPrintf(5, "don't del addr %v\n", addr)
 	}
 	lmap.mu.Unlock()
 	return sleepLock
