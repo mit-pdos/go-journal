@@ -16,7 +16,7 @@ func (l *Walog) logBlocks(memend LogPosition, memstart LogPosition, diskend LogP
 		buf := bufs[pos-diskend]
 		blk := buf.Blk
 		blkno := buf.Addr.Blkno
-		util.DPrintf(5, "logBlocks: %d to log block %d\n", blkno, pos)
+		util.DPrintf(1, "logBlocks: %d to log block %d\n", blkno, pos)
 		disk.Write(LOGSTART+(uint64(pos)%l.LogSz()), blk)
 	}
 }
@@ -67,9 +67,13 @@ func (l *Walog) logAppend() {
 
 func (l *Walog) logger() {
 	l.memLock.Lock()
+	l.nthread++
 	for !l.shutdown {
 		l.logAppend()
 		l.condLogger.Wait()
 	}
+	util.DPrintf(1, "logger: shutdown\n")
+	l.nthread--
+	l.condShut.Signal()
 	l.memLock.Unlock()
 }

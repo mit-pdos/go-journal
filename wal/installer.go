@@ -13,13 +13,17 @@ import (
 
 func (l *Walog) installer() {
 	l.memLock.Lock()
+	l.nthread++
 	for !l.shutdown {
+		l.condInstall.Wait()
 		blkcount, txn := l.logInstall()
 		if blkcount > 0 {
 			util.DPrintf(5, "Installed till txn %d\n", txn)
 		}
-		l.condInstall.Wait()
 	}
+	util.DPrintf(1, "installer: shutdown\n")
+	l.nthread--
+	l.condShut.Signal()
 	l.memLock.Unlock()
 }
 
@@ -28,7 +32,7 @@ func (l *Walog) installBlocks(bufs []buf.Buf) {
 	for i := uint64(0); i < n; i++ {
 		blkno := bufs[i].Addr.Blkno
 		blk := bufs[i].Blk
-		util.DPrintf(5, "installBlocks: write log block %d to %d\n", i, blkno)
+		util.DPrintf(1, "installBlocks: write log block %d to %d\n", i, blkno)
 		disk.Write(blkno, blk)
 	}
 }

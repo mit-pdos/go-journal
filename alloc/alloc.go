@@ -62,7 +62,8 @@ func (a *Alloc) findFreeRegion(buftxn *buftxn.BufTxn) *buf.Buf {
 	for {
 		b := a.lockRegion(buftxn, num, 1)
 		bit := num % 8
-		util.DPrintf(15, "findregion: %v %d 0x%x\n", b, num, b.Blk[0])
+		util.DPrintf(10, "findregion: s %d buf %v num %d byte 0x%x\n", start, b,
+			num, b.Blk[0])
 		if b.Blk[0]&(1<<bit) == 0 {
 			b.Blk[0] = b.Blk[0] | (1 << bit)
 			buf = b
@@ -71,7 +72,7 @@ func (a *Alloc) findFreeRegion(buftxn *buftxn.BufTxn) *buf.Buf {
 		buftxn.Release(b.Addr)
 		num = a.incNext(1)
 		if num == start {
-			panic("wrap around?")
+			return nil
 		}
 		continue
 	}

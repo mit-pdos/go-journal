@@ -63,14 +63,13 @@ func copyBits(src []byte, dst []byte, dstoff uint64, nbit uint64) {
 	var off uint64 = 0
 	var dstbyte uint64 = dstoff / 8
 
+	util.DPrintf(20, "copyBits dstoff %d nbit %d\n", dstoff, nbit)
 	// copy few last bits in first byte, if not byte aligned
 	if dstoff%8 != 0 {
 		bit := dstoff % 8
 		nbit := util.Min(8-bit, n)
 		srcbyte := src[0]
-		// TODO: which of these should be dstbyte vs dstbyte2?
-		dstbyte2 := dst[dstbyte]
-		dst[dstbyte2] = installBits(srcbyte, dstbyte2, bit, nbit)
+		dst[dstbyte] = installBits(srcbyte, dst[dstbyte], bit, nbit)
 		off += 8
 		dstbyte += 1
 		n -= nbit
@@ -88,15 +87,17 @@ func copyBits(src []byte, dst []byte, dstoff uint64, nbit uint64) {
 	if n > 0 {
 		lastbyte := off / 8
 		srcbyte := src[lastbyte]
-		dstbyte := dst[lastbyte+dstbyte]
-		dst[lastbyte] = installBits(srcbyte, dstbyte, 0, n)
+		d := dst[lastbyte+dstbyte]
+		dst[lastbyte+dstbyte] = installBits(srcbyte, d, 0, n)
 	}
 
 }
 
 // Install the bits from buf into blk, if buf has been modified
 func (buf *Buf) Install(blk disk.Block) {
+	util.DPrintf(20, "install %v\n", blk)
 	copyBits(buf.Blk, blk, buf.Addr.Off, buf.Addr.Sz)
+	util.DPrintf(20, "install -> %v\n", blk)
 }
 
 // Load the bits of a disk block into buf, as specified by addr

@@ -27,7 +27,11 @@ type Walog struct {
 	memLog   []buf.Buf // in-memory log starting with memStart
 	memStart LogPosition
 	diskEnd  LogPosition // next block to log to disk
+
+	// For shutdown:
 	shutdown bool
+	nthread  uint64
+	condShut *sync.Cond
 }
 
 func MkLog() *Walog {
@@ -40,6 +44,8 @@ func MkLog() *Walog {
 		memStart:    0,
 		diskEnd:     0,
 		shutdown:    false,
+		nthread:     0,
+		condShut:    sync.NewCond(ml),
 	}
 	util.DPrintf(1, "mkLog: size %d\n", l.LogSz())
 
@@ -245,5 +251,10 @@ func (l *Walog) Shutdown() {
 	l.shutdown = true
 	l.condLogger.Broadcast()
 	l.condInstall.Broadcast()
+	for l.nthread > 0 {
+		util.DPrintf(1, "wait for logger/installer")
+		l.condShut.Wait()
+	}
 	l.memLock.Unlock()
+	util.DPrintf(1, "wal done\n")
 }
