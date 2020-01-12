@@ -22,7 +22,7 @@ func (l *Walog) logBlocks(memend LogPosition, memstart LogPosition, diskend LogP
 }
 
 // Logger holds logLock
-func (l *Walog) logAppend() {
+func (l *Walog) logAppend() bool {
 	// Wait until there is sufficient space on disk for the entire
 	// in-memory log (i.e., the installer must catch up).
 	for {
@@ -39,7 +39,7 @@ func (l *Walog) logAppend() {
 	diskend := l.diskEnd
 	newbufs := memlog[diskend-memstart:]
 	if len(newbufs) == 0 {
-		return
+		return false
 	}
 
 	l.memLock.Unlock()
@@ -63,14 +63,18 @@ func (l *Walog) logAppend() {
 	l.diskEnd = memend
 	l.condLogger.Broadcast()
 	l.condInstall.Broadcast()
+
+	return true
 }
 
 func (l *Walog) logger() {
 	l.memLock.Lock()
 	l.nthread++
 	for !l.shutdown {
-		l.logAppend()
-		l.condLogger.Wait()
+		progress := l.logAppend()
+		if !progress {
+			l.condLogger.Wait()
+		}
 	}
 	util.DPrintf(1, "logger: shutdown\n")
 	l.nthread--
