@@ -48,14 +48,18 @@ func (buftxn *BufTxn) ReadBuf(addr buf.Addr) *buf.Buf {
 
 // caller has disk object (e.g., from cache), so don't read disk
 // object from disk if we don't have buf for it.
-func (buftxn *BufTxn) LookupBuf(addr buf.Addr) *buf.Buf {
+func (buftxn *BufTxn) OverWrite(addr buf.Addr, data []byte) {
 	b := buftxn.bufs.Lookup(addr)
 	if b == nil {
-		buf := buf.MkBufData(addr)
-		buftxn.bufs.Insert(buf)
+		b = buf.MkBuf(addr, data)
+		buftxn.bufs.Insert(b)
+	} else {
+		if uint64(len(data)*8) != b.Addr.Sz {
+			panic("overwrite")
+		}
+		b.Blk = data
 	}
-	b = buftxn.bufs.Lookup(addr)
-	return b
+	b.SetDirty()
 }
 
 func (buftxn *BufTxn) Acquire(addr buf.Addr) {
