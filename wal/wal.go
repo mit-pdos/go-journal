@@ -24,9 +24,10 @@ type Walog struct {
 	condLogger  *sync.Cond
 	condInstall *sync.Cond
 
-	memLog   []buf.Buf // in-memory log starting with memStart
-	memStart LogPosition
-	diskEnd  LogPosition // next block to log to disk
+	memLog    []buf.Buf // in-memory log starting with memStart
+	memStart  LogPosition
+	diskEnd   LogPosition // next block to log to disk
+	commitTxn LogPosition // up to commitTxn has been committed or will be
 
 	// For shutdown:
 	shutdown bool
@@ -147,19 +148,27 @@ func (l *Walog) recover() {
 // Assumes caller holds memLock
 func (l *Walog) memWrite(bufs []*buf.Buf) {
 	s := LogPosition(len(l.memLog))
-	for i, buf := range bufs {
+	i := 0
+	for _, buf := range bufs {
 		// remember most recent position for Blkno
 		pos := l.memStart + s + LogPosition(i)
 		oldpos, ok := l.memLogMap[buf.Addr.Blkno]
-		if ok {
-			util.DPrintf(1, "memLogMap: replace %d pos %d old %d\n",
+		if ok && oldpos >= l.commitTxn {
+			util.DPrintf(1, "memWrite: absorb %d pos %d old %d\n",
 				buf.Addr.Blkno, pos, oldpos)
+			l.memLog[oldpos-l.memStart] = *buf
 		} else {
-			util.DPrintf(1, "memLogMap: add %d pos %d\n",
-				buf.Addr.Blkno, pos)
+			if ok {
+				util.DPrintf(1, "memLogMap: replace %d pos %d old %d\n",
+					buf.Addr.Blkno, pos, oldpos)
+			} else {
+				util.DPrintf(1, "memLogMap: add %d pos %d\n",
+					buf.Addr.Blkno, pos)
+			}
+			l.memLog = append(l.memLog, *buf)
+			l.memLogMap[buf.Addr.Blkno] = pos
+			i += 1
 		}
-		l.memLog = append(l.memLog, *buf)
-		l.memLogMap[buf.Addr.Blkno] = pos
 	}
 	// l.condLogger.Broadcast()
 }
@@ -235,6 +244,8 @@ func (l *Walog) MemAppend(bufs []*buf.Buf) (LogPosition, bool) {
 	for {
 		if uint64(l.memStart)+uint64(len(l.memLog))-uint64(l.diskEnd)+uint64(len(bufs)) > l.LogSz() {
 			util.DPrintf(5, "memAppend: log is full; try again")
+			// commit everything, stable and unstable trans
+			l.commitTxn = l.memStart + LogPosition(len(l.memLog))
 			l.condLogger.Broadcast()
 			l.condLogger.Wait()
 			continue
@@ -246,11 +257,16 @@ func (l *Walog) MemAppend(bufs []*buf.Buf) (LogPosition, bool) {
 	return txn, true
 }
 
-// Wait until logger has appended in-memory log through txn to on-disk
+// Wait until logger has appended in-memory log up to txn to on-disk
 // log
 func (l *Walog) LogAppendWait(txn LogPosition) {
+	util.DPrintf(1, "LogAppendWait: commit till txn %d\n", txn)
 	l.condLogger.Broadcast()
 	l.memLock.Lock()
+	if txn > l.commitTxn {
+		// a concurrent transaction may already committed beyond txn
+		l.commitTxn = txn
+	}
 	for {
 		if txn <= l.diskEnd {
 			break
@@ -272,6 +288,7 @@ func (l *Walog) WaitFlushMemLog() {
 
 // Shutdown logger and installer
 func (l *Walog) Shutdown() {
+	util.DPrintf(1, "shutdown wal\n")
 	l.memLock.Lock()
 	l.shutdown = true
 	l.condLogger.Broadcast()

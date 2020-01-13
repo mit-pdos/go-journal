@@ -35,21 +35,19 @@ func (l *Walog) logAppend() bool {
 
 	memstart := l.memStart
 	memlog := l.memLog
-	memend := memstart + LogPosition(len(memlog))
+	memend := l.commitTxn
 	diskend := l.diskEnd
-	newbufs := memlog[diskend-memstart:]
+	newbufs := memlog[diskend-memstart : memend-memstart]
 	if len(newbufs) == 0 {
 		return false
 	}
 
 	l.memLock.Unlock()
 
-	//util.DPrintf("logAppend memend %d memstart %d diskend %d diskstart %d\n", memend, memstart, h.end, h.start)
-
 	l.logBlocks(memend, memstart, diskend, newbufs)
 
 	addrs := make([]uint64, l.LogSz())
-	for i := uint64(0); i < uint64(len(memlog)); i++ {
+	for i := uint64(0); i < uint64(memend-memstart); i++ {
 		pos := memstart + LogPosition(i)
 		addrs[uint64(pos)%l.LogSz()] = memlog[i].Addr.Blkno
 	}
