@@ -60,8 +60,7 @@ func (l *Walog) logInstall() (uint64, LogPosition) {
 	if installEnd < l.memStart {
 		panic("logInstall")
 	}
-	l.memLog = l.memLog[installEnd-l.memStart:]
-	l.memStart = installEnd
+	l.cutMemLog(installEnd)
 	l.condInstall.Broadcast()
 
 	return uint64(len(bufs)), installEnd

@@ -32,6 +32,9 @@ type Walog struct {
 	shutdown bool
 	nthread  uint64
 	condShut *sync.Cond
+
+	// For speeding up reads:
+	memLogMap map[uint64]LogPosition
 }
 
 func MkLog() *Walog {
@@ -46,6 +49,7 @@ func MkLog() *Walog {
 		shutdown:    false,
 		nthread:     0,
 		condShut:    sync.NewCond(ml),
+		memLogMap:   make(map[uint64]LogPosition),
 	}
 	util.DPrintf(1, "mkLog: size %d\n", l.LogSz())
 
@@ -141,10 +145,37 @@ func (l *Walog) recover() {
 }
 
 func (l *Walog) memWrite(bufs []*buf.Buf) {
-	for _, buf := range bufs {
+	s := LogPosition(len(l.memLog))
+	for i, buf := range bufs {
 		l.memLog = append(l.memLog, *buf)
+		// remember most recent position for Blkno
+		pos := l.memStart + s + LogPosition(i)
+		oldpos, ok := l.memLogMap[buf.Addr.Blkno]
+		if ok {
+			util.DPrintf(10, "memLogMap: replace %d pos %d old %d\n",
+				buf.Addr.Blkno, pos, oldpos)
+		} else {
+			util.DPrintf(10, "memLogMap: add %d pos %d\n",
+				buf.Addr.Blkno, pos)
+		}
+		l.memLogMap[buf.Addr.Blkno] = pos
 	}
 	l.condLogger.Broadcast()
+}
+
+func (l *Walog) cutMemLog(installEnd LogPosition) {
+	// delete from memLogMap, if most recent version of blkno
+	for i := l.memStart; i < installEnd; i++ {
+		blkno := l.memLog[i-l.memStart].Addr.Blkno
+		pos, ok := l.memLogMap[blkno]
+		if ok && pos == i {
+			util.DPrintf(1, "memLogMap: del %d %d\n", blkno, pos)
+			delete(l.memLogMap, blkno)
+		}
+	}
+	// shorten memLog
+	l.memLog = l.memLog[installEnd-l.memStart:]
+	l.memStart = installEnd
 }
 
 // Assumes caller holds memLock
@@ -163,27 +194,19 @@ func (l *Walog) LogSz() uint64 {
 	return fs.HDRADDRS
 }
 
-// Scan log for blkno. If not present, read from disk
-// XXX use map
+// Read blkno from memLog, if present
 func (l *Walog) readMemLog(blkno uint64) disk.Block {
 	var blk disk.Block
 
 	l.memLock.Lock()
-	if len(l.memLog) > 0 {
-		for i := len(l.memLog) - 1; ; i-- {
-			buf := l.memLog[i]
-			if buf.Addr.Blkno == blkno {
-				blk = make([]byte, disk.BlockSize)
-				copy(blk, buf.Blk)
-				break
-			}
-			if i == 0 {
-				break
-			}
-		}
+	pos, ok := l.memLogMap[blkno]
+	if ok {
+		util.DPrintf(1, "read memLogMap: read %d pos %d\n", blkno, pos)
+		buf := l.memLog[pos-l.memStart]
+		blk = make([]byte, disk.BlockSize)
+		copy(blk, buf.Blk)
 	}
 	l.memLock.Unlock()
-
 	return blk
 }
 
