@@ -91,8 +91,8 @@ func (txn *Txn) installBlock(blk disk.Block, bufs []*buf.Buf) {
 }
 
 // Installs the txn's bufs into their blocks and returns the blocks.
-// A buf may only partially update a disk block. Assume caller holds
-// commit lock.
+// A buf may only partially update a disk block and several bufs may
+// apply to the same disk block. Assume caller holds commit lock.
 func (txn *Txn) installBufs(bufs []*buf.Buf) []*buf.Buf {
 	var blks = make([]*buf.Buf, 0)
 	sort.Slice(bufs, func(i, j int) bool {
