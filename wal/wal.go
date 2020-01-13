@@ -144,23 +144,24 @@ func (l *Walog) recover() {
 	}
 }
 
+// Assumes caller holds memLock
 func (l *Walog) memWrite(bufs []*buf.Buf) {
 	s := LogPosition(len(l.memLog))
 	for i, buf := range bufs {
-		l.memLog = append(l.memLog, *buf)
 		// remember most recent position for Blkno
 		pos := l.memStart + s + LogPosition(i)
 		oldpos, ok := l.memLogMap[buf.Addr.Blkno]
 		if ok {
-			util.DPrintf(10, "memLogMap: replace %d pos %d old %d\n",
+			util.DPrintf(1, "memLogMap: replace %d pos %d old %d\n",
 				buf.Addr.Blkno, pos, oldpos)
 		} else {
-			util.DPrintf(10, "memLogMap: add %d pos %d\n",
+			util.DPrintf(1, "memLogMap: add %d pos %d\n",
 				buf.Addr.Blkno, pos)
 		}
+		l.memLog = append(l.memLog, *buf)
 		l.memLogMap[buf.Addr.Blkno] = pos
 	}
-	l.condLogger.Broadcast()
+	// l.condLogger.Broadcast()
 }
 
 func (l *Walog) cutMemLog(installEnd LogPosition) {
@@ -179,7 +180,6 @@ func (l *Walog) cutMemLog(installEnd LogPosition) {
 }
 
 // Assumes caller holds memLock
-// XXX absorp
 func (l *Walog) doMemAppend(bufs []*buf.Buf) LogPosition {
 	l.memWrite(bufs)
 	txn := l.memStart + LogPosition(len(l.memLog))
@@ -235,6 +235,7 @@ func (l *Walog) MemAppend(bufs []*buf.Buf) (LogPosition, bool) {
 	for {
 		if uint64(l.memStart)+uint64(len(l.memLog))-uint64(l.diskEnd)+uint64(len(bufs)) > l.LogSz() {
 			util.DPrintf(5, "memAppend: log is full; try again")
+			l.condLogger.Broadcast()
 			l.condLogger.Wait()
 			continue
 		}
@@ -248,6 +249,7 @@ func (l *Walog) MemAppend(bufs []*buf.Buf) (LogPosition, bool) {
 // Wait until logger has appended in-memory log through txn to on-disk
 // log
 func (l *Walog) LogAppendWait(txn LogPosition) {
+	l.condLogger.Broadcast()
 	l.memLock.Lock()
 	for {
 		if txn <= l.diskEnd {
