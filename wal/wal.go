@@ -274,8 +274,8 @@ func (l *Walog) MemAppend(bufs []*buf.Buf) (LogPosition, bool) {
 // log
 func (l *Walog) LogAppendWait(txn LogPosition) {
 	util.DPrintf(1, "LogAppendWait: commit till txn %d\n", txn)
-	l.condLogger.Broadcast()
 	l.memLock.Lock()
+	l.condLogger.Broadcast()
 	if txn > l.commitTxn {
 		// a concurrent transaction may already committed beyond txn
 		l.commitTxn = txn
