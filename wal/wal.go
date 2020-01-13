@@ -12,6 +12,19 @@ import (
 	"sync"
 )
 
+//
+//  Write-ahead logging
+//
+//  The layout of log:
+//  [ installed writes | logged writes | in-memory/logged | unstable in-memory ]
+//  ^                  ^               ^                  ^
+//  0                memStart        diskEnd           commitTxn
+//
+//  Blocks in the range [diskEnd, commitTxn) are in the process of
+//  being logged.  Blocks in unstable are unstably committed (i.e.,
+//  they can be lost on crash) and later transactions may absorp them.
+//
+
 type LogPosition uint64
 
 const LOGHDR = uint64(0)
