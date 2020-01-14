@@ -150,6 +150,7 @@ func (l *Walog) recover() {
 	h2 := l.readHdr2()
 	l.memStart = h2.start
 	l.diskEnd = h.end
+	util.DPrintf(1, "recover %d %d\n", l.memStart, l.diskEnd)
 	for pos := h2.start; pos < h.end; pos++ {
 		addr := h.addrs[uint64(pos)%l.LogSz()]
 		util.DPrintf(1, "recover block %d\n", addr)
@@ -158,6 +159,7 @@ func (l *Walog) recover() {
 		b := buf.MkBuf(a, blk)
 		l.memLog = append(l.memLog, *b)
 	}
+	l.commitTxn = l.memStart + LogPosition(len(l.memLog))
 }
 
 // Assumes caller holds memLock
