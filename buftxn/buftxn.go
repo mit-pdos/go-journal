@@ -38,8 +38,7 @@ func (buftxn *BufTxn) ReadBufLocked(addr buf.Addr) *buf.Buf {
 func (buftxn *BufTxn) ReadBuf(addr buf.Addr) *buf.Buf {
 	b := buftxn.bufs.Lookup(addr)
 	if b == nil {
-		buf := buf.MkBufData(addr)
-		buftxn.txn.Load(buf)
+		buf := buftxn.txn.Load(addr)
 		buftxn.bufs.Insert(buf)
 	}
 	b = buftxn.bufs.Lookup(addr)

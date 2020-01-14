@@ -27,11 +27,17 @@ func MkBuf(addr Addr, blk disk.Block) *Buf {
 	return b
 }
 
-func MkBufData(addr Addr) *Buf {
+// Load the bits of a disk block into a new buf, as specified by addr
+func MkBufLoad(addr Addr, blk disk.Block) *Buf {
+	byte := addr.Off / 8
 	sz := util.RoundUp(addr.Sz, 8)
-	data := make([]byte, sz)
-	buf := MkBuf(addr, data)
-	return buf
+	data := blk[byte : byte+sz]
+	b := &Buf{
+		Addr: addr,
+		Blk: data,
+		dirty: false,
+	}
+	return b
 }
 
 func (buf *Buf) String() string {

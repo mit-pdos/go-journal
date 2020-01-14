@@ -46,9 +46,10 @@ func (txn *Txn) GetTransId() TransId {
 }
 
 // Read a disk object into buf
-func (txn *Txn) Load(buf *buf.Buf) {
-	blk := txn.log.Read(buf.Addr.Blkno)
-	buf.Load(blk)
+func (txn *Txn) Load(addr buf.Addr) *buf.Buf {
+	blk := txn.log.Read(addr.Blkno)
+	b := buf.MkBufLoad(addr, blk)
+	return b
 }
 
 // Lock a disk object
