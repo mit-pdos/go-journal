@@ -97,7 +97,7 @@ func (lmap *lockMap) acquire(addr buf.Addr, id TransId) {
 	}
 	sleepLock.holder = id
 	sleepLock.mu.Unlock()
-	util.DPrintf(15, "%d: acquire -> %v\n", id, addr)
+	util.DPrintf(5, "%d: acquire -> %v\n", id, addr)
 }
 
 func (lmap *lockMap) dorelease(addr buf.Addr, id TransId) bool {

@@ -25,7 +25,7 @@ type Txn struct {
 func MkTxn(fs *fs.FsSuper) *Txn {
 	txn := &Txn{
 		mu:    new(sync.Mutex),
-		log:   wal.MkLog(),
+		log:   wal.MkLog(fs.Disk),
 		fs:    fs,
 		locks: mkLockMap(),
 	}

@@ -1,8 +1,6 @@
 package wal
 
 import (
-	"github.com/tchajed/goose/machine/disk"
-
 	"github.com/mit-pdos/goose-nfsd/buf"
 	"github.com/mit-pdos/goose-nfsd/util"
 )
@@ -17,7 +15,7 @@ func (l *Walog) logBlocks(memend LogPosition, memstart LogPosition, diskend LogP
 		blk := buf.Blk
 		blkno := buf.Addr.Blkno
 		util.DPrintf(1, "logBlocks: %d to log block %d\n", blkno, pos)
-		disk.Write(LOGSTART+(uint64(pos)%l.LogSz()), blk)
+		l.disk.Write(LOGSTART+(uint64(pos)%l.LogSz()), blk)
 	}
 }
 
@@ -56,6 +54,7 @@ func (l *Walog) logAppend() bool {
 		addrs: addrs,
 	}
 	l.writeHdr(newh)
+	l.disk.Barrier()
 
 	l.memLock.Lock()
 	l.diskEnd = memend

@@ -95,14 +95,14 @@ func (buf *Buf) Load(blk disk.Block) {
 	// copy(buf.Blk, blk[byte:byte+sz])
 }
 
-func (buf *Buf) WriteDirect() {
+func (buf *Buf) WriteDirect(d disk.Disk) {
 	buf.SetDirty()
 	if buf.Addr.Sz == disk.BlockSize {
-		disk.Write(buf.Addr.Blkno, buf.Blk)
+		d.Write(buf.Addr.Blkno, buf.Blk)
 	} else {
-		blk := disk.Read(buf.Addr.Blkno)
+		blk := d.Read(buf.Addr.Blkno)
 		buf.Install(blk)
-		disk.Write(buf.Addr.Blkno, blk)
+		d.Write(buf.Addr.Blkno, blk)
 	}
 }
 

@@ -1,8 +1,6 @@
 package wal
 
 import (
-	"github.com/tchajed/goose/machine/disk"
-
 	"github.com/mit-pdos/goose-nfsd/buf"
 	"github.com/mit-pdos/goose-nfsd/util"
 )
@@ -34,7 +32,7 @@ func (l *Walog) installBlocks(bufs []buf.Buf) {
 		blkno := bufs[i].Addr.Blkno
 		blk := bufs[i].Blk
 		util.DPrintf(1, "installBlocks: write log block %d to %d\n", i, blkno)
-		disk.Write(blkno, blk)
+		l.disk.Write(blkno, blk)
 	}
 }
 
