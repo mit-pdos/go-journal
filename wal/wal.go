@@ -4,7 +4,7 @@ import (
 	"github.com/tchajed/goose/machine"
 	"github.com/tchajed/goose/machine/disk"
 
-	"github.com/mit-pdos/goose-nfsd/bcache"
+	//	"github.com/mit-pdos/goose-nfsd/bcache"
 	"github.com/mit-pdos/goose-nfsd/buf"
 	"github.com/mit-pdos/goose-nfsd/fs"
 	"github.com/mit-pdos/goose-nfsd/marshal"
@@ -34,8 +34,8 @@ const LOGSTART = uint64(2)
 
 type Walog struct {
 	memLock *sync.Mutex
-	// bc      disk.Disk
-	bc *bcache.Bcache
+	bc      disk.Disk
+	// bc *bcache.Bcache
 
 	condLogger  *sync.Cond
 	condInstall *sync.Cond
@@ -57,8 +57,8 @@ type Walog struct {
 func MkLog(disk disk.Disk) *Walog {
 	ml := new(sync.Mutex)
 	l := &Walog{
-		// bc:          disk,
-		bc:          bcache.MkBcache(disk),
+		bc: disk,
+		//bc:          bcache.MkBcache(disk),
 		memLock:     ml,
 		condLogger:  sync.NewCond(ml),
 		condInstall: sync.NewCond(ml),
