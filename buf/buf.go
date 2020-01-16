@@ -33,8 +33,8 @@ func MkBufLoad(addr Addr, blk disk.Block) *Buf {
 	sz := util.RoundUp(addr.Sz, 8)
 	data := blk[byte : byte+sz]
 	b := &Buf{
-		Addr: addr,
-		Blk: data,
+		Addr:  addr,
+		Blk:   data,
 		dirty: false,
 	}
 	return b
