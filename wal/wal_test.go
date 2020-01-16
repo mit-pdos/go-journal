@@ -42,11 +42,11 @@ func mkBuf(fs *fs.FsSuper, blkno uint64, data []byte) *buf.Buf {
 func TestRecoverNone(t *testing.T) {
 	fmt.Printf("TestRecoverNone\n")
 
-	fs := fs.MkFsSuper()
+	fs := fs.MkFsSuper(100*1000, nil)
 
 	b := mkBuf(fs, 0, mkData(disk.BlockSize))
 
-	l := MkLog()
+	l := MkLog(fs.Disk)
 	l.Shutdown()
 
 	_, ok := l.MemAppend([]*buf.Buf{b})
@@ -62,12 +62,12 @@ func TestRecoverNone(t *testing.T) {
 func TestRecoverSimple(t *testing.T) {
 	fmt.Printf("TestRecoverSimple\n")
 
-	fs := fs.MkFsSuper()
+	fs := fs.MkFsSuper(100*1000, nil)
 	d := mkData(disk.BlockSize)
 
 	b := mkBuf(fs, 0, d)
 
-	l := MkLog()
+	l := MkLog(fs.Disk)
 
 	txn, ok := l.MemAppend([]*buf.Buf{b})
 	assert.Equal(t, ok, true)
