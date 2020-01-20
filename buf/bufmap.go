@@ -32,14 +32,14 @@ func (bmap *BufMap) Del(addr Addr) {
 }
 
 func (bmap *BufMap) Ndirty() uint64 {
-	n := 0
+	n := uint64(0)
 	bmap.addrs.Apply(func(a Addr, e interface{}) {
 		buf := e.(*Buf)
 		if buf.dirty {
 			n += 1
 		}
 	})
-	return 0
+	return n
 }
 
 func (bmap *BufMap) Bufs() []*Buf {

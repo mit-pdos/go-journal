@@ -204,7 +204,7 @@ func (l *Walog) cutMemLog(installEnd LogPosition) {
 		blkno := l.memLog[i-l.memStart].bn
 		pos, ok := l.memLogMap[blkno]
 		if ok && pos == i {
-			util.DPrintf(1, "memLogMap: del %d %d\n", blkno, pos)
+			util.DPrintf(5, "memLogMap: del %d %d\n", blkno, pos)
 			delete(l.memLogMap, blkno)
 		}
 	}
@@ -235,7 +235,7 @@ func (l *Walog) readMemLog(blkno uint64) disk.Block {
 	l.memLock.Lock()
 	pos, ok := l.memLogMap[blkno]
 	if ok {
-		util.DPrintf(1, "read memLogMap: read %d pos %d\n", blkno, pos)
+		util.DPrintf(5, "read memLogMap: read %d pos %d\n", blkno, pos)
 		buf := l.memLog[pos-l.memStart]
 		blk = make([]byte, disk.BlockSize)
 		copy(blk, buf.blk)

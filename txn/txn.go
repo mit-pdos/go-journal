@@ -85,8 +85,8 @@ func lastBuf(bufs []*buf.Buf) (uint64, bool) {
 // Install bufs that contain data for the same block
 func (txn *Txn) installBlock(blk disk.Block, bufs []*buf.Buf) {
 	l := len(bufs)
+	util.DPrintf(5, "installBlock %v #bufs %d\n", bufs[0].Addr.Blkno, l)
 	for i := 0; i < l; i++ {
-		util.DPrintf(5, "installBlock %v\n", bufs[i])
 		bufs[i].Install(blk)
 	}
 }
@@ -129,7 +129,7 @@ func (txn *Txn) doCommit(bufs []*buf.Buf, abort bool) (wal.LogPosition, bool) {
 
 	blks := txn.installBufs(bufs)
 
-	util.DPrintf(3, "doCommit: bufs %v\n", blks)
+	util.DPrintf(3, "doCommit: %v bufs\n", len(blks))
 
 	n, ok := txn.log.MemAppend(blks)
 
