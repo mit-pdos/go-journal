@@ -1,7 +1,6 @@
 package wal
 
 import (
-	"github.com/mit-pdos/goose-nfsd/buf"
 	"github.com/mit-pdos/goose-nfsd/util"
 )
 
@@ -26,11 +25,11 @@ func (l *Walog) installer() {
 	l.memLock.Unlock()
 }
 
-func (l *Walog) installBlocks(bufs []buf.Buf) {
+func (l *Walog) installBlocks(bufs []BlockData) {
 	n := uint64(len(bufs))
 	for i := uint64(0); i < n; i++ {
-		blkno := bufs[i].Addr.Blkno
-		blk := bufs[i].Blk
+		blkno := bufs[i].bn
+		blk := bufs[i].blk
 		util.DPrintf(1, "installBlocks: write log block %d to %d\n", i, blkno)
 		l.d.Write(blkno, blk)
 	}

@@ -44,12 +44,12 @@ func TestRecoverNone(t *testing.T) {
 
 	fs := fs.MkFsSuper(100*1000, nil)
 
-	b := mkBuf(fs, 0, mkData(disk.BlockSize))
+	b := MkBlockData(0, mkData(disk.BlockSize))
 
 	l := MkLog(fs.Disk)
 	l.Shutdown()
 
-	_, ok := l.MemAppend([]*buf.Buf{b})
+	_, ok := l.MemAppend([]BlockData{b})
 	assert.Equal(t, ok, true)
 
 	checkBlk(t, fs, 0, make([]byte, disk.BlockSize))
@@ -65,11 +65,11 @@ func TestRecoverSimple(t *testing.T) {
 	fs := fs.MkFsSuper(100*1000, nil)
 	d := mkData(disk.BlockSize)
 
-	b := mkBuf(fs, 0, d)
+	b := MkBlockData(0, d)
 
 	l := MkLog(fs.Disk)
 
-	txn, ok := l.MemAppend([]*buf.Buf{b})
+	txn, ok := l.MemAppend([]BlockData{b})
 	assert.Equal(t, ok, true)
 	l.LogAppendWait(txn)
 

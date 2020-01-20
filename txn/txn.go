@@ -94,8 +94,8 @@ func (txn *Txn) installBlock(blk disk.Block, bufs []*buf.Buf) {
 // Installs the txn's bufs into their blocks and returns the blocks.
 // A buf may only partially update a disk block and several bufs may
 // apply to the same disk block. Assume caller holds commit lock.
-func (txn *Txn) installBufs(bufs []*buf.Buf) []*buf.Buf {
-	var blks = make([]*buf.Buf, 0)
+func (txn *Txn) installBufs(bufs []*buf.Buf) []wal.BlockData {
+	var blks = make([]wal.BlockData, 0)
 	sort.Slice(bufs, func(i, j int) bool {
 		return bufs[i].Addr.Blkno < bufs[j].Addr.Blkno
 	})
@@ -114,8 +114,7 @@ func (txn *Txn) installBufs(bufs []*buf.Buf) []*buf.Buf {
 				blk = txn.log.Read(blkno)
 				txn.installBlock(blk, bufs[i:i+n])
 			}
-			b := buf.MkBuf(txn.fs.Block2addr(blkno), blk)
-			b.SetDirty()
+			b := wal.MkBlockData(blkno, blk)
 			blks = append(blks, b)
 		}
 		i = i + n

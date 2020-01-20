@@ -4,7 +4,6 @@ import (
 	"github.com/tchajed/goose/machine"
 	"github.com/tchajed/goose/machine/disk"
 
-	"github.com/mit-pdos/goose-nfsd/buf"
 	"github.com/mit-pdos/goose-nfsd/fs"
 	"github.com/mit-pdos/goose-nfsd/marshal"
 	"github.com/mit-pdos/goose-nfsd/util"
@@ -31,6 +30,16 @@ const LOGHDR = uint64(0)
 const LOGHDR2 = uint64(1)
 const LOGSTART = uint64(2)
 
+type BlockData struct {
+	bn  uint64
+	blk disk.Block
+}
+
+func MkBlockData(bn uint64, blk disk.Block) BlockData {
+	b := BlockData{bn: bn, blk: blk}
+	return b
+}
+
 type Walog struct {
 	memLock *sync.Mutex
 	d       disk.Disk
@@ -38,7 +47,7 @@ type Walog struct {
 	condLogger  *sync.Cond
 	condInstall *sync.Cond
 
-	memLog    []buf.Buf // in-memory log starting with memStart
+	memLog    []BlockData // in-memory log starting with memStart
 	memStart  LogPosition
 	diskEnd   LogPosition // next block to log to disk
 	commitTxn LogPosition // up to commitTxn has been committed or will be
@@ -59,7 +68,7 @@ func MkLog(disk disk.Disk) *Walog {
 		memLock:     ml,
 		condLogger:  sync.NewCond(ml),
 		condInstall: sync.NewCond(ml),
-		memLog:      make([]buf.Buf, 0),
+		memLog:      make([]BlockData, 0),
 		memStart:    0,
 		diskEnd:     0,
 		shutdown:    false,
@@ -155,35 +164,34 @@ func (l *Walog) recover() {
 		addr := h.addrs[uint64(pos)%l.LogSz()]
 		util.DPrintf(1, "recover block %d\n", addr)
 		blk := l.d.Read(LOGSTART + (uint64(pos) % l.LogSz()))
-		a := buf.MkAddr(addr, 0, fs.NBITBLOCK)
-		b := buf.MkBuf(a, blk)
-		l.memLog = append(l.memLog, *b)
+		b := MkBlockData(addr, blk)
+		l.memLog = append(l.memLog, b)
 	}
 	l.commitTxn = l.memStart + LogPosition(len(l.memLog))
 }
 
 // Assumes caller holds memLock
-func (l *Walog) memWrite(bufs []*buf.Buf) {
+func (l *Walog) memWrite(bufs []BlockData) {
 	s := LogPosition(len(l.memLog))
 	i := 0
 	for _, buf := range bufs {
 		// remember most recent position for Blkno
 		pos := l.memStart + s + LogPosition(i)
-		oldpos, ok := l.memLogMap[buf.Addr.Blkno]
+		oldpos, ok := l.memLogMap[buf.bn]
 		if ok && oldpos >= l.commitTxn {
 			util.DPrintf(1, "memWrite: absorb %d pos %d old %d\n",
-				buf.Addr.Blkno, pos, oldpos)
-			l.memLog[oldpos-l.memStart] = *buf
+				buf.bn, pos, oldpos)
+			l.memLog[oldpos-l.memStart] = buf
 		} else {
 			if ok {
 				util.DPrintf(1, "memLogMap: replace %d pos %d old %d\n",
-					buf.Addr.Blkno, pos, oldpos)
+					buf.bn, pos, oldpos)
 			} else {
 				util.DPrintf(1, "memLogMap: add %d pos %d\n",
-					buf.Addr.Blkno, pos)
+					buf.bn, pos)
 			}
-			l.memLog = append(l.memLog, *buf)
-			l.memLogMap[buf.Addr.Blkno] = pos
+			l.memLog = append(l.memLog, buf)
+			l.memLogMap[buf.bn] = pos
 			i += 1
 		}
 	}
@@ -193,7 +201,7 @@ func (l *Walog) memWrite(bufs []*buf.Buf) {
 func (l *Walog) cutMemLog(installEnd LogPosition) {
 	// delete from memLogMap, if most recent version of blkno
 	for i := l.memStart; i < installEnd; i++ {
-		blkno := l.memLog[i-l.memStart].Addr.Blkno
+		blkno := l.memLog[i-l.memStart].bn
 		pos, ok := l.memLogMap[blkno]
 		if ok && pos == i {
 			util.DPrintf(1, "memLogMap: del %d %d\n", blkno, pos)
@@ -206,7 +214,7 @@ func (l *Walog) cutMemLog(installEnd LogPosition) {
 }
 
 // Assumes caller holds memLock
-func (l *Walog) doMemAppend(bufs []*buf.Buf) LogPosition {
+func (l *Walog) doMemAppend(bufs []BlockData) LogPosition {
 	l.memWrite(bufs)
 	txn := l.memStart + LogPosition(len(l.memLog))
 	return txn
@@ -230,7 +238,7 @@ func (l *Walog) readMemLog(blkno uint64) disk.Block {
 		util.DPrintf(1, "read memLogMap: read %d pos %d\n", blkno, pos)
 		buf := l.memLog[pos-l.memStart]
 		blk = make([]byte, disk.BlockSize)
-		copy(blk, buf.Blk)
+		copy(blk, buf.blk)
 	}
 	l.memLock.Unlock()
 	return blk
@@ -251,7 +259,7 @@ func (l *Walog) Read(blkno uint64) disk.Block {
 
 // Append to in-memory log. Returns false, if bufs don't fit.
 // Otherwise, returns the txn for this append.
-func (l *Walog) MemAppend(bufs []*buf.Buf) (LogPosition, bool) {
+func (l *Walog) MemAppend(bufs []BlockData) (LogPosition, bool) {
 	if uint64(len(bufs)) > l.LogSz() {
 		return 0, false
 	}
