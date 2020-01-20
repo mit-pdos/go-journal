@@ -4,7 +4,6 @@ import (
 	"github.com/tchajed/goose/machine"
 	"github.com/tchajed/goose/machine/disk"
 
-	"github.com/mit-pdos/goose-nfsd/bcache"
 	"github.com/mit-pdos/goose-nfsd/buf"
 	"github.com/mit-pdos/goose-nfsd/fs"
 	"github.com/mit-pdos/goose-nfsd/marshal"
@@ -34,8 +33,7 @@ const LOGSTART = uint64(2)
 
 type Walog struct {
 	memLock *sync.Mutex
-	// bc      disk.Disk
-	bc *bcache.Bcache
+	d       disk.Disk
 
 	condLogger  *sync.Cond
 	condInstall *sync.Cond
@@ -57,8 +55,7 @@ type Walog struct {
 func MkLog(disk disk.Disk) *Walog {
 	ml := new(sync.Mutex)
 	l := &Walog{
-		// bc:          disk,
-		bc:          bcache.MkBcache(disk),
+		d:           disk,
 		memLock:     ml,
 		condLogger:  sync.NewCond(ml),
 		condInstall: sync.NewCond(ml),
@@ -127,11 +124,11 @@ func encodeHdr2(h hdr2, blk disk.Block) {
 func (l *Walog) writeHdr(h *hdr) {
 	blk := make(disk.Block, disk.BlockSize)
 	encodeHdr(*h, blk)
-	l.bc.Write(LOGHDR, blk)
+	l.d.Write(LOGHDR, blk)
 }
 
 func (l *Walog) readHdr() *hdr {
-	blk := l.bc.Read(LOGHDR)
+	blk := l.d.Read(LOGHDR)
 	h := decodeHdr(blk)
 	return h
 }
@@ -139,11 +136,11 @@ func (l *Walog) readHdr() *hdr {
 func (l *Walog) writeHdr2(h *hdr2) {
 	blk := make(disk.Block, disk.BlockSize)
 	encodeHdr2(*h, blk)
-	l.bc.Write(LOGHDR2, blk)
+	l.d.Write(LOGHDR2, blk)
 }
 
 func (l *Walog) readHdr2() *hdr2 {
-	blk := l.bc.Read(LOGHDR2)
+	blk := l.d.Read(LOGHDR2)
 	h := decodeHdr2(blk)
 	return h
 }
@@ -157,7 +154,7 @@ func (l *Walog) recover() {
 	for pos := h2.start; pos < h.end; pos++ {
 		addr := h.addrs[uint64(pos)%l.LogSz()]
 		util.DPrintf(1, "recover block %d\n", addr)
-		blk := l.bc.Read(LOGSTART + (uint64(pos) % l.LogSz()))
+		blk := l.d.Read(LOGSTART + (uint64(pos) % l.LogSz()))
 		a := buf.MkAddr(addr, 0, fs.NBITBLOCK)
 		b := buf.MkBuf(a, blk)
 		l.memLog = append(l.memLog, *b)
@@ -246,7 +243,7 @@ func (l *Walog) Read(blkno uint64) disk.Block {
 	if blkMem != nil {
 		blk = blkMem
 	} else {
-		blk = l.bc.Read(blkno)
+		blk = l.d.Read(blkno)
 	}
 
 	return blk

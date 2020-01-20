@@ -15,7 +15,7 @@ func (l *Walog) logBlocks(memend LogPosition, memstart LogPosition, diskend LogP
 		blk := buf.Blk
 		blkno := buf.Addr.Blkno
 		util.DPrintf(1, "logBlocks: %d to log block %d\n", blkno, pos)
-		l.bc.Write(LOGSTART+(uint64(pos)%l.LogSz()), blk)
+		l.d.Write(LOGSTART+(uint64(pos)%l.LogSz()), blk)
 	}
 }
 
@@ -54,7 +54,7 @@ func (l *Walog) logAppend() bool {
 		addrs: addrs,
 	}
 	l.writeHdr(newh)
-	l.bc.Barrier()
+	l.d.Barrier()
 
 	l.memLock.Lock()
 	l.diskEnd = memend

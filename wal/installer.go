@@ -32,7 +32,7 @@ func (l *Walog) installBlocks(bufs []buf.Buf) {
 		blkno := bufs[i].Addr.Blkno
 		blk := bufs[i].Blk
 		util.DPrintf(1, "installBlocks: write log block %d to %d\n", i, blkno)
-		l.bc.Write(blkno, blk)
+		l.d.Write(blkno, blk)
 	}
 }
 
