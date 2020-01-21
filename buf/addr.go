@@ -7,7 +7,7 @@ type Addr struct {
 	Sz    uint64 // sz in bits
 }
 
-func (a *Addr) eq(b Addr) bool {
+func (a *Addr) Eq(b Addr) bool {
 	return a.Blkno == b.Blkno && a.Off == b.Off && a.Sz == b.Sz
 }
 

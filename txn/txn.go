@@ -57,29 +57,27 @@ func (txn *Txn) Acquire(addr buf.Addr, id TransId) {
 	txn.locks.acquire(addr, id)
 }
 
-// Lock a disk object
-func (txn *Txn) IsLocked(addr buf.Addr, id TransId) bool {
-	return txn.locks.isLocked(addr, id)
-}
-
 // Release lock on buf of trans id
 func (txn *Txn) Release(addr buf.Addr, id TransId) {
-	util.DPrintf(10, "%d: Unlock %v\n", id, addr)
 	txn.locks.release(addr, id)
 }
 
+// Release all locks used by trans id
+func (txn *Txn) releaseTxn(addrs []buf.Addr, id TransId) {
+	util.DPrintf(15, "releaseTxn: %v\n", addrs)
+	for _, a := range addrs {
+		txn.locks.release(a, id)
+	}
+}
+
 // Last buf that has data for same block
-func lastBuf(bufs []*buf.Buf) (uint64, bool) {
-	var dirty = false
+func lastBuf(bufs []*buf.Buf) uint64 {
 	i := uint64(0)
 	blkno := bufs[i].Addr.Blkno
 	l := uint64(len(bufs))
 	for ; i < l && blkno == bufs[i].Addr.Blkno; i++ {
-		if bufs[i].IsDirty() {
-			dirty = true
-		}
 	}
-	return i, dirty
+	return i
 }
 
 // Install bufs that contain data for the same block
@@ -101,22 +99,20 @@ func (txn *Txn) installBufs(bufs []*buf.Buf) []wal.BlockData {
 	})
 	l := uint64(len(bufs))
 	for i := uint64(0); i < l; {
-		n, dirty := lastBuf(bufs[i:])
-		util.DPrintf(15, "lastbuf %v %d %v\n", bufs[i].Addr, n, dirty)
-		if dirty {
-			var blk []byte
-			blkno := bufs[i].Addr.Blkno
-			if txn.fs.DiskBlockSize(bufs[i].Addr) {
-				// overwrite complete block
-				blk = bufs[i].Blk
-			} else {
-				// read block blkno and install
-				blk = txn.log.Read(blkno)
-				txn.installBlock(blk, bufs[i:i+n])
-			}
-			b := wal.MkBlockData(blkno, blk)
-			blks = append(blks, b)
+		n := lastBuf(bufs[i:])
+		util.DPrintf(15, "lastbuf %v %d %v\n", bufs[i].Addr, n)
+		var blk []byte
+		blkno := bufs[i].Addr.Blkno
+		if txn.fs.DiskBlockSize(bufs[i].Addr) {
+			// overwrite complete block
+			blk = bufs[i].Blk
+		} else {
+			// read block blkno and install
+			blk = txn.log.Read(blkno)
+			txn.installBlock(blk, bufs[i:i+n])
 		}
+		b := wal.MkBlockData(blkno, blk)
+		blks = append(blks, b)
 		i = i + n
 	}
 	return blks
@@ -140,7 +136,7 @@ func (txn *Txn) doCommit(bufs []*buf.Buf, abort bool) (wal.LogPosition, bool) {
 
 // Commit blocks of the transaction into the log, and perhaps wait. In either
 // case, release the transaction's locks.
-func (txn *Txn) CommitWait(bufs []*buf.Buf, wait bool, abort bool, id TransId) bool {
+func (txn *Txn) CommitWait(addrs []buf.Addr, bufs []*buf.Buf, wait bool, abort bool, id TransId) bool {
 	n, ok := txn.doCommit(bufs, abort)
 	if !ok {
 		util.DPrintf(10, "memappend failed; log is too small\n")
@@ -148,14 +144,14 @@ func (txn *Txn) CommitWait(bufs []*buf.Buf, wait bool, abort bool, id TransId) b
 		if wait {
 			txn.log.LogAppendWait(n)
 		}
-		txn.locks.releaseTxn(id)
+		txn.releaseTxn(addrs, id)
 	}
 	return ok
 }
 
-func (txn *Txn) Flush(id TransId) bool {
+func (txn *Txn) Flush(addrs []buf.Addr, id TransId) bool {
 	txn.log.WaitFlushMemLog()
-	txn.locks.releaseTxn(id)
+	txn.releaseTxn(addrs, id)
 	return true
 }
 

@@ -31,7 +31,7 @@ func (amap *AddrMap) Lookup(addr Addr) interface{} {
 	addrs, ok := amap.addrs[addr.Blkno]
 	if ok {
 		for _, a := range addrs {
-			if addr.eq(a.addr) {
+			if addr.Eq(a.addr) {
 				obj = a.obj
 				break
 			}
@@ -57,7 +57,7 @@ func (amap *AddrMap) Del(addr Addr) {
 		return
 	}
 	for i, l := range locks {
-		if l.addr.eq(addr) {
+		if l.addr.Eq(addr) {
 			index = uint64(i)
 			found = true
 		}

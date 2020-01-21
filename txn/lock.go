@@ -10,8 +10,8 @@ import (
 //
 // A map from address to sleeplock
 //
-// XXX should delete entries
-//
+
+const NSHARD uint64 = 43
 
 type sleepLock struct {
 	mu      *sync.Mutex
@@ -20,26 +20,26 @@ type sleepLock struct {
 	nwaiter uint64
 }
 
-type lockMap struct {
+type lockShard struct {
 	mu    *sync.Mutex
 	addrs *buf.AddrMap
 }
 
-func mkLockMap() *lockMap {
-	a := &lockMap{
+func mkLockShard() *lockShard {
+	a := &lockShard{
 		mu:    new(sync.Mutex),
 		addrs: buf.MkAddrMap(),
 	}
 	return a
 }
 
-func (lmap *lockMap) Len() uint64 {
+func (lmap *lockShard) Len() uint64 {
 	n := lmap.addrs.Len()
 	return n
 }
 
 // atomically lookup and add addr
-func (lmap *lockMap) lookupadd(addr buf.Addr) *sleepLock {
+func (lmap *lockShard) lookupadd(addr buf.Addr) *sleepLock {
 	lmap.mu.Lock()
 	e := lmap.addrs.Lookup(addr)
 	if e == nil {
@@ -54,7 +54,7 @@ func (lmap *lockMap) lookupadd(addr buf.Addr) *sleepLock {
 }
 
 // atomically lookup and del if not in use
-func (lmap *lockMap) lookupdel(addr buf.Addr) *sleepLock {
+func (lmap *lockShard) lookupdel(addr buf.Addr) *sleepLock {
 	lmap.mu.Lock()
 	e := lmap.addrs.Lookup(addr)
 	if e == nil {
@@ -75,18 +75,7 @@ func (lmap *lockMap) lookupdel(addr buf.Addr) *sleepLock {
 	return sleepLock
 }
 
-func (lmap *lockMap) isLocked(addr buf.Addr, id TransId) bool {
-	locked := false
-	sleepLock := lmap.lookupadd(addr)
-	sleepLock.mu.Lock()
-	if sleepLock.holder == id {
-		locked = true
-	}
-	sleepLock.mu.Unlock()
-	return locked
-}
-
-func (lmap *lockMap) acquire(addr buf.Addr, id TransId) {
+func (lmap *lockShard) acquire(addr buf.Addr, id TransId) {
 	util.DPrintf(15, "%d: acquire: %v\n", id, addr)
 	sleepLock := lmap.lookupadd(addr)
 	sleepLock.mu.Lock()
@@ -100,7 +89,7 @@ func (lmap *lockMap) acquire(addr buf.Addr, id TransId) {
 	util.DPrintf(5, "%d: acquire -> %v\n", id, addr)
 }
 
-func (lmap *lockMap) dorelease(addr buf.Addr, id TransId) bool {
+func (lmap *lockShard) dorelease(addr buf.Addr, id TransId) bool {
 	var delete bool = true
 	util.DPrintf(15, "%d: dorelease: %v\n", id, addr)
 	sleepLock := lmap.lookupadd(addr)
@@ -118,28 +107,34 @@ func (lmap *lockMap) dorelease(addr buf.Addr, id TransId) bool {
 	return delete
 }
 
-func (lmap *lockMap) release(addr buf.Addr, id TransId) {
+func (lmap *lockShard) release(addr buf.Addr, id TransId) {
 	del := lmap.dorelease(addr, id)
 	if del {
 		lmap.lookupdel(addr)
 	}
 }
 
-// release all blocks held by txn
-func (lmap *lockMap) releaseTxn(id TransId) {
-	lmap.mu.Lock()
-	util.DPrintf(15, "%d: releaseTxn %d\n", id, lmap.Len())
-	var addrs = make([]buf.Addr, 0)
-	lmap.addrs.Apply(func(a buf.Addr, e interface{}) {
-		sleepLock := e.(*sleepLock)
-		sleepLock.mu.Lock()
-		if sleepLock.holder == id {
-			addrs = append(addrs, a)
-		}
-		sleepLock.mu.Unlock()
-	})
-	lmap.mu.Unlock()
-	for _, a := range addrs {
-		lmap.release(a, id)
+type lockMap struct {
+	shards []*lockShard
+}
+
+func mkLockMap() *lockMap {
+	shards := make([]*lockShard, NSHARD)
+	for i := uint64(0); i < NSHARD; i++ {
+		shards[i] = mkLockShard()
 	}
+	a := &lockMap{
+		shards: shards,
+	}
+	return a
+}
+
+func (lmap *lockMap) acquire(addr buf.Addr, id TransId) {
+	shard := lmap.shards[addr.Blkno%NSHARD]
+	shard.acquire(addr, id)
+}
+
+func (lmap *lockMap) release(addr buf.Addr, id TransId) {
+	shard := lmap.shards[addr.Blkno%NSHARD]
+	shard.release(addr, id)
 }

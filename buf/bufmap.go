@@ -42,11 +42,13 @@ func (bmap *BufMap) Ndirty() uint64 {
 	return n
 }
 
-func (bmap *BufMap) Bufs() []*Buf {
+func (bmap *BufMap) DirtyBufs() []*Buf {
 	bufs := make([]*Buf, 0)
 	bmap.addrs.Apply(func(a Addr, e interface{}) {
 		b := e.(*Buf)
-		bufs = append(bufs, b)
+		if b.dirty {
+			bufs = append(bufs, b)
+		}
 	})
 	return bufs
 }
