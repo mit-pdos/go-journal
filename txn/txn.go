@@ -134,8 +134,10 @@ func (txn *Txn) doCommit(bufs []*buf.Buf, abort bool) (wal.LogPosition, bool) {
 	return n, ok
 }
 
-// Commit blocks of the transaction into the log, and perhaps wait. In either
-// case, release the transaction's locks.
+// Commit dirty blocks of the transaction into the log, and perhaps
+// wait. In either case, release the transaction's locked addresses.
+// addrs may include addresses beyond the ones in bufs; for example,
+// disk objects that the transaction has read, but not modified.
 func (txn *Txn) CommitWait(addrs []buf.Addr, bufs []*buf.Buf, wait bool, abort bool, id TransId) bool {
 	n, ok := txn.doCommit(bufs, abort)
 	if !ok {

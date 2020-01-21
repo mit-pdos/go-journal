@@ -8,7 +8,7 @@ import (
 )
 
 //
-// A map from address to sleeplock
+// A sharded map from address to sleeplock
 //
 
 const NSHARD uint64 = 43
@@ -118,6 +118,11 @@ type lockMap struct {
 	shards []*lockShard
 }
 
+func index(addr buf.Addr) uint64 {
+	i := addr.Blkno + addr.Off
+	return i % NSHARD
+}
+
 func mkLockMap() *lockMap {
 	shards := make([]*lockShard, NSHARD)
 	for i := uint64(0); i < NSHARD; i++ {
@@ -130,11 +135,11 @@ func mkLockMap() *lockMap {
 }
 
 func (lmap *lockMap) acquire(addr buf.Addr, id TransId) {
-	shard := lmap.shards[addr.Blkno%NSHARD]
+	shard := lmap.shards[index(addr)]
 	shard.acquire(addr, id)
 }
 
 func (lmap *lockMap) release(addr buf.Addr, id TransId) {
-	shard := lmap.shards[addr.Blkno%NSHARD]
+	shard := lmap.shards[index(addr)]
 	shard.release(addr, id)
 }
