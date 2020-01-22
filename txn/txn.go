@@ -139,16 +139,20 @@ func (txn *Txn) doCommit(bufs []*buf.Buf, abort bool) (wal.LogPosition, bool) {
 // addrs may include addresses beyond the ones in bufs; for example,
 // disk objects that the transaction has read, but not modified.
 func (txn *Txn) CommitWait(addrs []buf.Addr, bufs []*buf.Buf, wait bool, abort bool, id TransId) bool {
-	n, ok := txn.doCommit(bufs, abort)
-	if !ok {
-		util.DPrintf(10, "memappend failed; log is too small\n")
-	} else {
-		if wait {
-			txn.log.LogAppendWait(n)
+	var commit = true
+	if len(bufs) > 0 {
+		n, ok := txn.doCommit(bufs, abort)
+		if !ok {
+			util.DPrintf(10, "memappend failed; log is too small\n")
+			commit = false
+		} else {
+			if wait {
+				txn.log.LogAppendWait(n)
+			}
 		}
-		txn.releaseTxn(addrs, id)
 	}
-	return ok
+	txn.releaseTxn(addrs, id)
+	return commit
 }
 
 func (txn *Txn) Flush(addrs []buf.Addr, id TransId) bool {

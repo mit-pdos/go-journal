@@ -1,7 +1,7 @@
 package buf
 
 //
-// a map from addr to an object.  assumes that addr's don't overlap.  implementation
+// A map from addr to an object.  It assumes that addr's don't overlap.  Implementation
 // limits disk size to 2^64 bits.
 //
 
