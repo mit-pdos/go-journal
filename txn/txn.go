@@ -150,6 +150,8 @@ func (txn *Txn) CommitWait(addrs []buf.Addr, bufs []*buf.Buf, wait bool, abort b
 				txn.log.LogAppendWait(n)
 			}
 		}
+	} else {
+		util.DPrintf(5, "commit read-only trans\n")
 	}
 	txn.releaseTxn(addrs, id)
 	return commit
