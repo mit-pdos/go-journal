@@ -119,7 +119,7 @@ type lockMap struct {
 }
 
 func index(addr buf.Addr) uint64 {
-	i := addr.Blkno + addr.Off
+	i := addr.Flatid()
 	return i % NSHARD
 }
 

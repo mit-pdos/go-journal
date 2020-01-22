@@ -1,10 +1,18 @@
 package buf
 
+import (
+	"github.com/tchajed/goose/machine/disk"
+)
+
 // Address of disk object and its size
 type Addr struct {
 	Blkno uint64
 	Off   uint64 // offset in bits
 	Sz    uint64 // sz in bits
+}
+
+func (a *Addr) Flatid() uint64 {
+	return a.Blkno*(disk.BlockSize*8) + a.Off
 }
 
 func (a *Addr) Eq(b Addr) bool {
