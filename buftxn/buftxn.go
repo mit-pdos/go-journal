@@ -22,6 +22,7 @@ func Begin(txn *txn.Txn) *BufTxn {
 		id:    txn.GetTransId(),
 		addrs: make([]buf.Addr, 0),
 	}
+	util.DPrintf(1, "Begin: %v\n", trans.id)
 	return trans
 }
 
