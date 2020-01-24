@@ -12,6 +12,14 @@ import (
 	"sync"
 )
 
+//
+// txn manages transactions created by buftxn layer.  It has a map of
+// locked disk objects.  Transactions acquire locks on addresses
+// incrementally and free them on commit.  The upper layers are
+// responsible for lock ordering.  txn implements commit using a
+// write-ahead log.
+//
+
 type TransId uint64
 
 type Txn struct {

@@ -8,6 +8,13 @@ import (
 	"github.com/mit-pdos/goose-nfsd/util"
 )
 
+//
+// Txn layer used by file system.  A transaction has locked addresses
+// and buffers that it has read/written.  A transaction may hold more
+// locks than buffers (e.g., it may have locked an inode, but read the
+// inode from the file system's inode code).
+//
+
 type BufTxn struct {
 	txn   *txn.Txn
 	bufs  *buf.BufMap // map of bufs read/written by trans
