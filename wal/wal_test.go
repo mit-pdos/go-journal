@@ -5,7 +5,6 @@ import (
 
 	"github.com/tchajed/goose/machine/disk"
 
-	"github.com/mit-pdos/goose-nfsd/buf"
 	"github.com/mit-pdos/goose-nfsd/fs"
 
 	"testing"
@@ -33,15 +32,8 @@ func checkBlk(t *testing.T, fs *fs.FsSuper, blkno uint64, expected []byte) {
 	checkData(t, d, expected)
 }
 
-func mkBuf(fs *fs.FsSuper, blkno uint64, data []byte) *buf.Buf {
-	addr := fs.Block2addr(blkno + fs.DataStart())
-	b := buf.MkBuf(addr, mkData(disk.BlockSize))
-	return b
-}
-
 func TestRecoverNone(t *testing.T) {
 	fmt.Printf("TestRecoverNone\n")
-
 	fs := fs.MkFsSuper(100*1000, nil)
 
 	b := MkBlockData(0, mkData(disk.BlockSize))
@@ -61,11 +53,10 @@ func TestRecoverNone(t *testing.T) {
 
 func TestRecoverSimple(t *testing.T) {
 	fmt.Printf("TestRecoverSimple\n")
-
 	fs := fs.MkFsSuper(100*1000, nil)
 	d := mkData(disk.BlockSize)
 
-	b := MkBlockData(0, d)
+	b := MkBlockData(fs.DataStart(), d)
 
 	l := MkLog(fs.Disk)
 
@@ -78,5 +69,4 @@ func TestRecoverSimple(t *testing.T) {
 	l.recover()
 
 	checkBlk(t, fs, 0, d)
-
 }
