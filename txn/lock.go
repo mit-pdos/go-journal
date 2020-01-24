@@ -8,7 +8,7 @@ import (
 )
 
 //
-// A sharded map from address to sleeplock
+// A sharded map from address to sleeplock's
 //
 
 const NSHARD uint64 = 43
@@ -31,11 +31,6 @@ func mkLockShard() *lockShard {
 		addrs: buf.MkAddrMap(),
 	}
 	return a
-}
-
-func (lmap *lockShard) Len() uint64 {
-	n := lmap.addrs.Len()
-	return n
 }
 
 // Lookup addr and return locked sleepLock for addr.  Lock ordering:

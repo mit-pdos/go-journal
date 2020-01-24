@@ -12,7 +12,7 @@ import (
 // Txn layer used by file system.  A transaction has locked addresses
 // and buffers that it has read/written.  A transaction may hold more
 // locks than buffers (e.g., it may have locked an inode, but read the
-// inode from the file system's inode code).
+// inode from the file system's inode cache).
 //
 
 type BufTxn struct {

@@ -15,7 +15,7 @@ import (
 //
 // txn manages transactions created by buftxn layer.  It has a map of
 // locked disk objects.  Transactions acquire locks on addresses
-// incrementally and free them on commit.  The upper layers are
+// incrementally and release them on commit.  The upper layers are
 // responsible for lock ordering.  txn implements commit using a
 // write-ahead log.
 //
@@ -78,7 +78,7 @@ func (txn *Txn) releaseTxn(addrs []buf.Addr, id TransId) {
 	}
 }
 
-// Last buf that has data for same block
+// Last buf in bufs that has data for the same block as the first buf
 func lastBuf(bufs []*buf.Buf) uint64 {
 	i := uint64(0)
 	blkno := bufs[i].Addr.Blkno
