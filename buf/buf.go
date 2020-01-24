@@ -1,14 +1,14 @@
 package buf
 
 import (
+	"fmt"
+
 	"github.com/tchajed/goose/machine/disk"
 
 	"github.com/mit-pdos/goose-nfsd/util"
-
-	"fmt"
 )
 
-// A buf holds the disk object (inode, bitmap block, etc.) at Addr.
+// A buf holds a disk object (inode, a bitmap bit, or disk block)
 type Buf struct {
 	Addr  Addr
 	Blk   disk.Block
@@ -44,51 +44,45 @@ func (buf *Buf) String() string {
 	return fmt.Sprintf("%v %v", buf.Addr, buf.dirty)
 }
 
-// copy nbit bits from src to dst, starting to bit. return new dst.
-func installBits(src byte, dst byte, bit uint64, nbit uint64) byte {
+// Install 1 bit from src into dst, at offset bit. return new dst.
+func installOneBit(src byte, dst byte, bit uint64) byte {
 	var new byte = dst
-	for i := bit; i < bit+nbit; i++ {
-		if src&(1<<i) == dst&(1<<i) {
-			continue
-		}
-		if src&(1<<i) == 0 {
+	if src&(1<<bit) != dst&(1<<bit) {
+		if src&(1<<bit) == 0 {
 			// dst is 1, but should be 0
-			new = new & ^(1 << i)
+			new = new & ^(1 << bit)
 		} else {
 			// dst is 0, but should be 1
-			new = new | (1 << i)
+			new = new | (1 << bit)
 		}
 	}
 	return new
 }
 
-// copy nbits from src to dst, at dstoff in destination. dstoff is in bits.
-func copyBits(src []byte, dst []byte, dstoff uint64, nbit uint64) {
-	for i := uint64(0); i < nbit; i++ {
-		dstbyte := (dstoff + i) / 8
-		dst[dstbyte] = installBits(src[i/8], dst[dstbyte], (dstoff+i)%8, 1)
-	}
+// Install bit from src to dst, at dstoff in destination. dstoff is in bits.
+func installBit(src []byte, dst []byte, dstoff uint64) {
+	dstbyte := dstoff / 8
+	dst[dstbyte] = installOneBit(src[0], dst[dstbyte], (dstoff)%8)
 }
 
-// copy nbits from src to dst. dstoff is byte aligned, so can copy byte at
-// the time
-func copyBitsAligned(src []byte, dst []byte, dstoff uint64, nbit uint64) {
+// Install bytes from src to dst.
+func installBytes(src []byte, dst []byte, dstoff uint64, nbit uint64) {
 	sz := nbit / 8
 	for i := uint64(0); i < sz; i++ {
 		dst[(dstoff/8)+i] = src[i]
 	}
 	nbit -= sz * 8
-	// copy few remaining bits
-	copyBits(src[sz:], dst[(dstoff/8)+sz:], 0, nbit)
 }
 
-// Install the bits from buf into blk, if buf has been modified
+// Install the bits from buf into blk.  Two cases: a bit or an inode
 func (buf *Buf) Install(blk disk.Block) {
 	util.DPrintf(20, "install %v\n", blk)
-	if buf.Addr.Off%8 == 0 {
-		copyBitsAligned(buf.Blk, blk, buf.Addr.Off, buf.Addr.Sz)
+	if buf.Addr.Sz == 1 {
+		installBit(buf.Blk, blk, buf.Addr.Off)
+	} else if buf.Addr.Sz%8 == 0 && buf.Addr.Off%8 == 0 {
+		installBytes(buf.Blk, blk, buf.Addr.Off, buf.Addr.Sz)
 	} else {
-		copyBits(buf.Blk, blk, buf.Addr.Off, buf.Addr.Sz)
+		panic("Install unsupported\n")
 	}
 	util.DPrintf(20, "install -> %v\n", blk)
 }
@@ -98,7 +92,6 @@ func (buf *Buf) Load(blk disk.Block) {
 	byte := buf.Addr.Off / 8
 	sz := util.RoundUp(buf.Addr.Sz, 8)
 	buf.Blk = blk[byte : byte+sz]
-	// copy(buf.Blk, blk[byte:byte+sz])
 }
 
 func (buf *Buf) WriteDirect(d disk.Disk) {

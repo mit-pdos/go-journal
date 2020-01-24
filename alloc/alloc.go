@@ -42,9 +42,9 @@ func freeBit(buf *buf.Buf, bn uint64) {
 	buf.Blk[0] = buf.Blk[0] & ^(1 << bit)
 }
 
-func (a *Alloc) incNext(inc uint64) uint64 {
+func (a *Alloc) incNext() uint64 {
 	a.lock.Lock()
-	a.next = a.next + inc // inc bits
+	a.next = a.next + 1
 	if a.next >= a.len*NBITBLOCK {
 		a.next = 0
 	}
@@ -53,16 +53,16 @@ func (a *Alloc) incNext(inc uint64) uint64 {
 	return num
 }
 
-// Returns a locked region in the bitmap with some free bits.
-func (a *Alloc) findFreeRegion(buftxn *buftxn.BufTxn) *buf.Buf {
+// Returns a locked free bit in the bitmap
+func (a *Alloc) findFreeBit(buftxn *buftxn.BufTxn) *buf.Buf {
 	var buf *buf.Buf
 	var num uint64
-	num = a.incNext(1)
+	num = a.incNext()
 	start := num
 	for {
-		b := a.lockRegion(buftxn, num, 1)
+		b := a.lockBit(buftxn, num)
 		bit := num % 8
-		util.DPrintf(10, "findregion: s %d buf %v num %d byte 0x%x\n", start, b,
+		util.DPrintf(10, "findFreeBit: s %d buf %v num %d byte 0x%x\n", start, b,
 			num, b.Blk[0])
 		if b.Blk[0]&(1<<bit) == 0 {
 			b.Blk[0] = b.Blk[0] | (1 << bit)
@@ -70,7 +70,7 @@ func (a *Alloc) findFreeRegion(buftxn *buftxn.BufTxn) *buf.Buf {
 			break
 		}
 		buftxn.Release(b.Addr)
-		num = a.incNext(1)
+		num = a.incNext()
 		if num == start {
 			return nil
 		}
@@ -79,14 +79,14 @@ func (a *Alloc) findFreeRegion(buftxn *buftxn.BufTxn) *buf.Buf {
 	return buf
 }
 
-// Lock the region in the bitmap that contains n
-func (a *Alloc) lockRegion(buftxn *buftxn.BufTxn, n uint64, bits uint64) *buf.Buf {
+// Lock the n-th bit in the bitmap
+func (a *Alloc) lockBit(buftxn *buftxn.BufTxn, n uint64) *buf.Buf {
 	var b *buf.Buf
 	i := n / NBITBLOCK
 	bit := n % NBITBLOCK
-	addr := buf.MkAddr(a.start+i, bit, bits)
+	addr := buf.MkAddr(a.start+i, bit, 1)
 	b = buftxn.ReadBufLocked(addr)
-	util.DPrintf(15, "LockRegion: %v\n", b)
+	util.DPrintf(15, "lockBit: %v\n", b)
 	return b
 }
 
@@ -103,7 +103,7 @@ func (a *Alloc) free(buf *buf.Buf, n uint64) {
 
 func (a *Alloc) AllocNum(buftxn *buftxn.BufTxn) uint64 {
 	var num uint64 = 0
-	b := a.findFreeRegion(buftxn)
+	b := a.findFreeBit(buftxn)
 	if b != nil {
 		b.SetDirty()
 		num = (b.Addr.Blkno-a.start)*NBITBLOCK + b.Addr.Off
@@ -115,7 +115,7 @@ func (a *Alloc) FreeNum(buftxn *buftxn.BufTxn, num uint64) {
 	if num == 0 {
 		panic("FreeNum")
 	}
-	buf := a.lockRegion(buftxn, num, 1)
+	buf := a.lockBit(buftxn, num)
 	a.free(buf, num)
 	buf.SetDirty()
 }
