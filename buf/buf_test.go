@@ -3,26 +3,24 @@ package buf
 import (
 	"github.com/tchajed/goose/machine/disk"
 
-	"fmt"
-
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
-func TestInstallBits(t *testing.T) {
+func TestInstallOneBit(t *testing.T) {
 	r := installOneBit(byte(0x1F), byte(0x0), 4)
 	assert.Equal(t, byte(0x10), r)
 	r = installOneBit(byte(0xF), byte(0x1F), 4)
 	assert.Equal(t, byte(0x0F), r)
 }
 
-func TestCopyBits(t *testing.T) {
+func TestInstallBit(t *testing.T) {
 	dst := []byte{0x0}
 	installBit([]byte{0x1F}, dst, 4)
 	assert.Equal(t, byte(0x10), dst[0])
 }
 
-func TestCopyBytes(t *testing.T) {
+func TestInstallBytes(t *testing.T) {
 	dst := make([]byte, disk.BlockSize)
 	src := make([]byte, 16)
 	src[0] = byte(0xFF)
@@ -30,7 +28,6 @@ func TestCopyBytes(t *testing.T) {
 	src[2] = byte(0x03)
 	dst[3] = byte(0xF0)
 	installBytes(src, dst, 8, 16)
-	fmt.Printf("dst %v\n", dst[0:4])
 	assert.Equal(t, byte(0xFF), dst[1])
 	assert.Equal(t, byte(0xF0), dst[2])
 	assert.Equal(t, byte(0xF0), dst[3])
