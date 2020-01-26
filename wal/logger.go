@@ -13,7 +13,7 @@ func (l *Walog) logBlocks(memend LogPosition, memstart LogPosition, diskend LogP
 		buf := bufs[pos-diskend]
 		blk := buf.blk
 		blkno := buf.bn
-		util.DPrintf(1, "logBlocks: %d to log block %d\n", blkno, pos)
+		util.DPrintf(5, "logBlocks: %d to log block %d\n", blkno, pos)
 		l.d.Write(LOGSTART+(uint64(pos)%l.LogSz()), blk)
 	}
 }

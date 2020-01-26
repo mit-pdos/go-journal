@@ -179,15 +179,15 @@ func (l *Walog) memWrite(bufs []BlockData) {
 		pos := l.memStart + s + LogPosition(i)
 		oldpos, ok := l.memLogMap[buf.bn]
 		if ok && oldpos >= l.commitTxn {
-			util.DPrintf(1, "memWrite: absorb %d pos %d old %d\n",
+			util.DPrintf(5, "memWrite: absorb %d pos %d old %d\n",
 				buf.bn, pos, oldpos)
 			l.memLog[oldpos-l.memStart] = buf
 		} else {
 			if ok {
-				util.DPrintf(1, "memLogMap: replace %d pos %d old %d\n",
+				util.DPrintf(5, "memLogMap: replace %d pos %d old %d\n",
 					buf.bn, pos, oldpos)
 			} else {
-				util.DPrintf(1, "memLogMap: add %d pos %d\n",
+				util.DPrintf(5, "memLogMap: add %d pos %d\n",
 					buf.bn, pos)
 			}
 			l.memLog = append(l.memLog, buf)

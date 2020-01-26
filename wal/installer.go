@@ -30,7 +30,7 @@ func (l *Walog) installBlocks(bufs []BlockData) {
 	for i := uint64(0); i < n; i++ {
 		blkno := bufs[i].bn
 		blk := bufs[i].blk
-		util.DPrintf(1, "installBlocks: write log block %d to %d\n", i, blkno)
+		util.DPrintf(5, "installBlocks: write log block %d to %d\n", i, blkno)
 		l.d.Write(blkno, blk)
 	}
 }
@@ -46,7 +46,7 @@ func (l *Walog) logInstall() (uint64, LogPosition) {
 
 	l.memLock.Unlock()
 
-	util.DPrintf(1, "logInstall up to %d\n", installEnd)
+	util.DPrintf(5, "logInstall up to %d\n", installEnd)
 	l.installBlocks(bufs)
 	h := &hdr2{
 		start: installEnd,
