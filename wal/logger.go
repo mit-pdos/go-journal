@@ -32,7 +32,7 @@ func (l *Walog) logAppend() bool {
 
 	memstart := l.memStart
 	memlog := l.memLog
-	memend := l.commitTxn
+	memend := l.nextDiskEnd
 	diskend := l.diskEnd
 	newbufs := memlog[diskend-memstart : memend-memstart]
 	if len(newbufs) == 0 {

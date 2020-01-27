@@ -16,12 +16,18 @@ import (
 //
 //  The layout of log:
 //  [ installed writes | logged writes | in-memory/logged | unstable in-memory ]
-//  ^                  ^               ^                  ^
-//  0                memStart        diskEnd           commitTxn
+//   ^                   ^               ^                  ^
+//   0                   memStart        diskEnd            nextDiskEnd
 //
-//  Blocks in the range [diskEnd, commitTxn) are in the process of
+//  Blocks in the range [diskEnd, nextDiskEnd) are in the process of
 //  being logged.  Blocks in unstable are unstably committed (i.e.,
-//  they can be lost on crash) and later transactions may absorp them.
+//  written by NFS Write with the unstable flag and they can be lost
+//  on crash). Later transactions may absorp them (e.g., a later NFS
+//  write may update the same inode or indirect block).  The code
+//  implements a policy of postponing writing unstable blocks to disk
+//  as long as possible to maximize the chance of absorption (i.e.,
+//  commitWait or log is full).  It may better to start logging
+//  earlier.
 //
 
 type LogPosition uint64
@@ -47,10 +53,10 @@ type Walog struct {
 	condLogger  *sync.Cond
 	condInstall *sync.Cond
 
-	memLog    []BlockData // in-memory log starting with memStart
-	memStart  LogPosition
-	diskEnd   LogPosition // next block to log to disk
-	commitTxn LogPosition // up to commitTxn has been committed or will be
+	memLog      []BlockData // in-memory log starting with memStart
+	memStart    LogPosition
+	diskEnd     LogPosition // next block to log to disk
+	nextDiskEnd LogPosition
 
 	// For shutdown:
 	shutdown bool
@@ -167,7 +173,7 @@ func (l *Walog) recover() {
 		b := MkBlockData(addr, blk)
 		l.memLog = append(l.memLog, b)
 	}
-	l.commitTxn = l.memStart + LogPosition(len(l.memLog))
+	l.nextDiskEnd = l.memStart + LogPosition(len(l.memLog))
 }
 
 // Assumes caller holds memLock
@@ -178,7 +184,7 @@ func (l *Walog) memWrite(bufs []BlockData) {
 		// remember most recent position for Blkno
 		pos := l.memStart + s + LogPosition(i)
 		oldpos, ok := l.memLogMap[buf.bn]
-		if ok && oldpos >= l.commitTxn {
+		if ok && oldpos >= l.nextDiskEnd {
 			util.DPrintf(5, "memWrite: absorb %d pos %d old %d\n",
 				buf.bn, pos, oldpos)
 			l.memLog[oldpos-l.memStart] = buf
@@ -270,7 +276,7 @@ func (l *Walog) MemAppend(bufs []BlockData) (LogPosition, bool) {
 		if uint64(l.memStart)+uint64(len(l.memLog))-uint64(l.diskEnd)+uint64(len(bufs)) > l.LogSz() {
 			util.DPrintf(5, "memAppend: log is full; try again")
 			// commit everything, stable and unstable trans
-			l.commitTxn = l.memStart + LogPosition(len(l.memLog))
+			l.nextDiskEnd = l.memStart + LogPosition(len(l.memLog))
 			l.condLogger.Broadcast()
 			l.condLogger.Wait()
 			continue
@@ -288,9 +294,9 @@ func (l *Walog) LogAppendWait(txn LogPosition) {
 	util.DPrintf(1, "LogAppendWait: commit till txn %d\n", txn)
 	l.memLock.Lock()
 	l.condLogger.Broadcast()
-	if txn > l.commitTxn {
+	if txn > l.nextDiskEnd {
 		// a concurrent transaction may already committed beyond txn
-		l.commitTxn = txn
+		l.nextDiskEnd = txn
 	}
 	for {
 		if txn <= l.diskEnd {
