@@ -108,7 +108,7 @@ func (txn *Txn) installBufs(bufs []*buf.Buf) []wal.BlockData {
 	l := uint64(len(bufs))
 	for i := uint64(0); i < l; {
 		n := lastBuf(bufs[i:])
-		util.DPrintf(15, "lastbuf %v %d %v\n", bufs[i].Addr, n)
+		util.DPrintf(15, "lastbuf %v %d\n", bufs[i].Addr, n)
 		var blk []byte
 		blkno := bufs[i].Addr.Blkno
 		if txn.fs.DiskBlockSize(bufs[i].Addr) {
