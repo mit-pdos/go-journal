@@ -60,7 +60,7 @@ func (a *Alloc) findFreeBit(buftxn *buftxn.BufTxn) *buf.Buf {
 	num = a.incNext()
 	start := num
 	for {
-		b := a.lockBit(buftxn, num)
+		b, alreadylocked := a.lockBit(buftxn, num)
 		bit := num % 8
 		util.DPrintf(10, "findFreeBit: s %d buf %v num %d byte 0x%x\n", start, b,
 			num, b.Blk[0])
@@ -69,7 +69,9 @@ func (a *Alloc) findFreeBit(buftxn *buftxn.BufTxn) *buf.Buf {
 			buf = b
 			break
 		}
-		buftxn.Release(b.Addr)
+		if !alreadylocked {
+			buftxn.Release(b.Addr)
+		}
 		num = a.incNext()
 		if num == start {
 			return nil
@@ -80,14 +82,20 @@ func (a *Alloc) findFreeBit(buftxn *buftxn.BufTxn) *buf.Buf {
 }
 
 // Lock the n-th bit in the bitmap
-func (a *Alloc) lockBit(buftxn *buftxn.BufTxn, n uint64) *buf.Buf {
+func (a *Alloc) lockBit(buftxn *buftxn.BufTxn, n uint64) (*buf.Buf, bool) {
 	var b *buf.Buf
+	var alreadylocked = false
 	i := n / NBITBLOCK
 	bit := n % NBITBLOCK
 	addr := buf.MkAddr(a.start+i, bit, 1)
-	b = buftxn.ReadBufLocked(addr)
+	if buftxn.IsLocked(addr) {
+		b = buftxn.ReadBuf(addr)
+		alreadylocked = true
+	} else {
+		b = buftxn.ReadBufLocked(addr)
+	}
 	util.DPrintf(15, "lockBit: %v\n", b)
-	return b
+	return b, alreadylocked
 }
 
 func (a *Alloc) free(buf *buf.Buf, n uint64) {
@@ -115,7 +123,7 @@ func (a *Alloc) FreeNum(buftxn *buftxn.BufTxn, num uint64) {
 	if num == 0 {
 		panic("FreeNum")
 	}
-	buf := a.lockBit(buftxn, num)
+	buf, _ := a.lockBit(buftxn, num)
 	a.free(buf, num)
 	buf.SetDirty()
 }

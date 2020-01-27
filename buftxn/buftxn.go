@@ -132,6 +132,7 @@ func (buftxn *BufTxn) check() {
 // Commit dirty bufs of this transaction
 func (buftxn *BufTxn) CommitWait(wait bool, abort bool) bool {
 	// buftxn.check()
+	util.DPrintf(1, "Commit %d w %v a %v\n", buftxn.id, wait, abort)
 	return buftxn.txn.CommitWait(buftxn.addrs, buftxn.bufs.DirtyBufs(),
 		wait, abort, buftxn.id)
 }
