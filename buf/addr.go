@@ -4,7 +4,7 @@ import (
 	"github.com/tchajed/goose/machine/disk"
 )
 
-type Bnum uint64
+type Bnum = uint64
 
 const NULLBNUM Bnum = 0
 
