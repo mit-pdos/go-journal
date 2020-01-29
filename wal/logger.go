@@ -1,6 +1,7 @@
 package wal
 
 import (
+	"github.com/mit-pdos/goose-nfsd/buf"
 	"github.com/mit-pdos/goose-nfsd/util"
 )
 
@@ -14,7 +15,7 @@ func (l *Walog) logBlocks(memend LogPosition, memstart LogPosition, diskend LogP
 		blk := buf.blk
 		blkno := buf.bn
 		util.DPrintf(5, "logBlocks: %d to log block %d\n", blkno, pos)
-		l.d.Write(LOGSTART+(uint64(pos)%l.LogSz()), blk)
+		l.d.Write(uint64(LOGSTART)+(uint64(pos)%l.LogSz()), blk)
 	}
 }
 
@@ -43,7 +44,7 @@ func (l *Walog) logAppend() bool {
 
 	l.logBlocks(memend, memstart, diskend, newbufs)
 
-	addrs := make([]uint64, l.LogSz())
+	addrs := make([]buf.Bnum, l.LogSz())
 	for i := uint64(0); i < uint64(memend-memstart); i++ {
 		pos := memstart + LogPosition(i)
 		addrs[uint64(pos)%l.LogSz()] = memlog[i].bn

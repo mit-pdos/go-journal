@@ -4,6 +4,7 @@ import (
 	"github.com/tchajed/goose/machine"
 	"github.com/tchajed/goose/machine/disk"
 
+	"github.com/mit-pdos/goose-nfsd/buf"
 	"github.com/mit-pdos/goose-nfsd/fs"
 	"github.com/mit-pdos/goose-nfsd/marshal"
 	"github.com/mit-pdos/goose-nfsd/util"
@@ -32,16 +33,16 @@ import (
 
 type LogPosition uint64
 
-const LOGHDR = uint64(0)
-const LOGHDR2 = uint64(1)
-const LOGSTART = uint64(2)
+const LOGHDR = buf.Bnum(0)
+const LOGHDR2 = buf.Bnum(1)
+const LOGSTART = buf.Bnum(2)
 
 type BlockData struct {
-	bn  uint64
+	bn  buf.Bnum
 	blk disk.Block
 }
 
-func MkBlockData(bn uint64, blk disk.Block) BlockData {
+func MkBlockData(bn buf.Bnum, blk disk.Block) BlockData {
 	b := BlockData{bn: bn, blk: blk}
 	return b
 }
@@ -64,7 +65,7 @@ type Walog struct {
 	condShut *sync.Cond
 
 	// For speeding up reads:
-	memLogMap map[uint64]LogPosition
+	memLogMap map[buf.Bnum]LogPosition
 }
 
 func MkLog(disk disk.Disk) *Walog {
@@ -80,7 +81,7 @@ func MkLog(disk disk.Disk) *Walog {
 		shutdown:    false,
 		nthread:     0,
 		condShut:    sync.NewCond(ml),
-		memLogMap:   make(map[uint64]LogPosition),
+		memLogMap:   make(map[buf.Bnum]LogPosition),
 	}
 	util.DPrintf(1, "mkLog: size %d\n", l.LogSz())
 
@@ -97,7 +98,7 @@ func MkLog(disk disk.Disk) *Walog {
 // On-disk header in the first block of the log
 type hdr struct {
 	end   LogPosition
-	addrs []uint64
+	addrs []buf.Bnum
 }
 
 func decodeHdr(blk disk.Block) *hdr {
@@ -107,14 +108,14 @@ func decodeHdr(blk disk.Block) *hdr {
 	}
 	dec := marshal.NewDec(blk)
 	h.end = LogPosition(dec.GetInt())
-	h.addrs = dec.GetInts(fs.HDRADDRS)
+	h.addrs = dec.GetBnums(fs.HDRADDRS)
 	return h
 }
 
 func encodeHdr(h hdr, blk disk.Block) {
 	enc := marshal.NewEnc(blk)
 	enc.PutInt(uint64(h.end))
-	enc.PutInts(h.addrs)
+	enc.PutBnums(h.addrs)
 }
 
 // On-disk header in the second block of the log
@@ -139,11 +140,11 @@ func encodeHdr2(h hdr2, blk disk.Block) {
 func (l *Walog) writeHdr(h *hdr) {
 	blk := make(disk.Block, disk.BlockSize)
 	encodeHdr(*h, blk)
-	l.d.Write(LOGHDR, blk)
+	l.d.Write(uint64(LOGHDR), blk)
 }
 
 func (l *Walog) readHdr() *hdr {
-	blk := l.d.Read(LOGHDR)
+	blk := l.d.Read(uint64(LOGHDR))
 	h := decodeHdr(blk)
 	return h
 }
@@ -151,11 +152,11 @@ func (l *Walog) readHdr() *hdr {
 func (l *Walog) writeHdr2(h *hdr2) {
 	blk := make(disk.Block, disk.BlockSize)
 	encodeHdr2(*h, blk)
-	l.d.Write(LOGHDR2, blk)
+	l.d.Write(uint64(LOGHDR2), blk)
 }
 
 func (l *Walog) readHdr2() *hdr2 {
-	blk := l.d.Read(LOGHDR2)
+	blk := l.d.Read(uint64(LOGHDR2))
 	h := decodeHdr2(blk)
 	return h
 }
@@ -169,7 +170,7 @@ func (l *Walog) recover() {
 	for pos := h2.start; pos < h.end; pos++ {
 		addr := h.addrs[uint64(pos)%l.LogSz()]
 		util.DPrintf(1, "recover block %d\n", addr)
-		blk := l.d.Read(LOGSTART + (uint64(pos) % l.LogSz()))
+		blk := l.d.Read(uint64(LOGSTART) + (uint64(pos) % l.LogSz()))
 		b := MkBlockData(addr, blk)
 		l.memLog = append(l.memLog, b)
 	}
@@ -235,7 +236,7 @@ func (l *Walog) LogSz() uint64 {
 }
 
 // Read blkno from memLog, if present
-func (l *Walog) readMemLog(blkno uint64) disk.Block {
+func (l *Walog) readMemLog(blkno buf.Bnum) disk.Block {
 	var blk disk.Block
 
 	l.memLock.Lock()
@@ -250,14 +251,14 @@ func (l *Walog) readMemLog(blkno uint64) disk.Block {
 	return blk
 }
 
-func (l *Walog) Read(blkno uint64) disk.Block {
+func (l *Walog) Read(blkno buf.Bnum) disk.Block {
 	var blk disk.Block
 
 	blkMem := l.readMemLog(blkno)
 	if blkMem != nil {
 		blk = blkMem
 	} else {
-		blk = l.d.Read(blkno)
+		blk = l.d.Read(uint64(blkno))
 	}
 
 	return blk

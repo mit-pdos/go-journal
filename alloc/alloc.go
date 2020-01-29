@@ -18,12 +18,12 @@ const (
 // corresponds to number 1, bit 1 to 1, and so on.
 type Alloc struct {
 	lock  *sync.Mutex // protects next
-	start uint64
+	start buf.Bnum
 	len   uint64
 	next  uint64 // first number to try
 }
 
-func MkAlloc(start uint64, len uint64) *Alloc {
+func MkAlloc(start buf.Bnum, len uint64) *Alloc {
 	a := &Alloc{
 		lock:  new(sync.Mutex),
 		start: start,
@@ -87,7 +87,7 @@ func (a *Alloc) lockBit(buftxn *buftxn.BufTxn, n uint64) (*buf.Buf, bool) {
 	var alreadylocked = false
 	i := n / NBITBLOCK
 	bit := n % NBITBLOCK
-	addr := buf.MkAddr(a.start+i, bit, 1)
+	addr := buf.MkAddr(a.start+buf.Bnum(i), bit, 1)
 	if buftxn.IsLocked(addr) {
 		b = buftxn.ReadBuf(addr)
 		alreadylocked = true
@@ -98,15 +98,15 @@ func (a *Alloc) lockBit(buftxn *buftxn.BufTxn, n uint64) (*buf.Buf, bool) {
 	return b, alreadylocked
 }
 
-func (a *Alloc) free(buf *buf.Buf, n uint64) {
+func (a *Alloc) free(b *buf.Buf, n uint64) {
 	i := n / NBITBLOCK
 	if i >= a.len {
 		panic("freeBlock")
 	}
-	if buf.Addr.Blkno != a.start+i {
+	if b.Addr.Blkno != a.start+buf.Bnum(i) {
 		panic("freeBlock")
 	}
-	freeBit(buf, n%NBITBLOCK)
+	freeBit(b, n%NBITBLOCK)
 }
 
 func (a *Alloc) AllocNum(buftxn *buftxn.BufTxn) uint64 {
@@ -114,7 +114,7 @@ func (a *Alloc) AllocNum(buftxn *buftxn.BufTxn) uint64 {
 	b := a.findFreeBit(buftxn)
 	if b != nil {
 		b.SetDirty()
-		num = (b.Addr.Blkno-a.start)*NBITBLOCK + b.Addr.Off
+		num = (uint64(b.Addr.Blkno-a.start))*NBITBLOCK + b.Addr.Off
 	}
 	return num
 }

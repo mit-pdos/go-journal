@@ -97,11 +97,11 @@ func (buf *Buf) Load(blk disk.Block) {
 func (buf *Buf) WriteDirect(d disk.Disk) {
 	buf.SetDirty()
 	if buf.Addr.Sz == disk.BlockSize {
-		d.Write(buf.Addr.Blkno, buf.Blk)
+		d.Write(uint64(buf.Addr.Blkno), buf.Blk)
 	} else {
-		blk := d.Read(buf.Addr.Blkno)
+		blk := d.Read(uint64(buf.Addr.Blkno))
 		buf.Install(blk)
-		d.Write(buf.Addr.Blkno, blk)
+		d.Write(uint64(buf.Addr.Blkno), blk)
 	}
 }
 
@@ -113,11 +113,11 @@ func (buf *Buf) SetDirty() {
 	buf.dirty = true
 }
 
-func (buf *Buf) Uint64Get(off uint64) uint64 {
-	return machine.UInt64Get(buf.Blk[off : off+8])
+func (buf *Buf) BnumGet(off uint64) Bnum {
+	return Bnum(machine.UInt64Get(buf.Blk[off : off+8]))
 }
 
-func (buf *Buf) Uint64Put(off, v uint64) {
-	machine.UInt64Put(buf.Blk[off:off+8], v)
+func (buf *Buf) BnumPut(off uint64, v Bnum) {
+	machine.UInt64Put(buf.Blk[off:off+8], uint64(v))
 	buf.SetDirty()
 }
