@@ -180,7 +180,7 @@ func (l *Walog) recover() {
 // Assumes caller holds memLock
 func (l *Walog) memWrite(bufs []BlockData) {
 	s := LogPosition(len(l.memLog))
-	i := 0
+	var i uint64 = 0
 	for _, buf := range bufs {
 		// remember most recent position for Blkno
 		pos := l.memStart + s + LogPosition(i)

@@ -10,7 +10,7 @@ import (
 
 func (l *Walog) installer() {
 	l.memLock.Lock()
-	l.nthread++
+	l.nthread += 1
 	for !l.shutdown {
 		blkcount, txn := l.logInstall()
 		if blkcount > 0 {
@@ -20,7 +20,7 @@ func (l *Walog) installer() {
 		}
 	}
 	util.DPrintf(1, "installer: shutdown\n")
-	l.nthread--
+	l.nthread -= 1
 	l.condShut.Signal()
 	l.memLock.Unlock()
 }

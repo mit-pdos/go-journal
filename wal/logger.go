@@ -66,7 +66,7 @@ func (l *Walog) logAppend() bool {
 
 func (l *Walog) logger() {
 	l.memLock.Lock()
-	l.nthread++
+	l.nthread += 1
 	for !l.shutdown {
 		progress := l.logAppend()
 		if !progress {
@@ -74,7 +74,7 @@ func (l *Walog) logger() {
 		}
 	}
 	util.DPrintf(1, "logger: shutdown\n")
-	l.nthread--
+	l.nthread -= 1
 	l.condShut.Signal()
 	l.memLock.Unlock()
 }
