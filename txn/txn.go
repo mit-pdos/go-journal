@@ -32,10 +32,11 @@ type Txn struct {
 
 func MkTxn(fs *fs.FsSuper) *Txn {
 	txn := &Txn{
-		mu:    new(sync.Mutex),
-		log:   wal.MkLog(fs.Disk),
-		fs:    fs,
-		locks: mkLockMap(),
+		mu:     new(sync.Mutex),
+		log:    wal.MkLog(fs.Disk),
+		fs:     fs,
+		locks:  mkLockMap(),
+		nextId: TransId(0),
 	}
 	return txn
 }
@@ -43,7 +44,7 @@ func MkTxn(fs *fs.FsSuper) *Txn {
 // Return a unique Id for a transaction
 func (txn *Txn) GetTransId() TransId {
 	txn.mu.Lock()
-	id := txn.nextId
+	var id = txn.nextId
 	if id == 0 { // skip 0
 		txn.nextId += 1
 		id = 1
@@ -80,7 +81,7 @@ func (txn *Txn) releaseTxn(addrs []buf.Addr, id TransId) {
 
 // Last buf in bufs that has data for the same block as the first buf
 func lastBuf(bufs []*buf.Buf) uint64 {
-	i := uint64(0)
+	var i = uint64(0)
 	blkno := bufs[i].Addr.Blkno
 	l := uint64(len(bufs))
 	for ; i < l && blkno == bufs[i].Addr.Blkno; i++ {
@@ -90,9 +91,9 @@ func lastBuf(bufs []*buf.Buf) uint64 {
 
 // Install bufs that contain data for the same block
 func (txn *Txn) installBlock(blk disk.Block, bufs []*buf.Buf) {
-	l := len(bufs)
+	l := uint64(len(bufs))
 	util.DPrintf(5, "installBlock %v #bufs %d\n", bufs[0].Addr.Blkno, l)
-	for i := 0; i < l; i++ {
+	for i := uint64(0); i < l; i++ {
 		bufs[i].Install(blk)
 	}
 }
