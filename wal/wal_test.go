@@ -28,7 +28,7 @@ func checkData(t *testing.T, read, expected []byte) {
 }
 
 func checkBlk(t *testing.T, fs *fs.FsSuper, blkno uint64, expected []byte) {
-	d := fs.Disk.Read(blkno + fs.DataStart())
+	d := fs.Disk.Read(blkno + uint64(fs.DataStart()))
 	checkData(t, d, expected)
 }
 
