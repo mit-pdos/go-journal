@@ -63,19 +63,19 @@ func (txn *Txn) Load(addr buf.Addr) *buf.Buf {
 
 // Lock a disk object
 func (txn *Txn) Acquire(addr buf.Addr, id TransId) {
-	txn.locks.acquire(addr, id)
+	txn.locks.acquire(addr.Flatid(), id)
 }
 
 // Release lock on buf of trans id
 func (txn *Txn) Release(addr buf.Addr, id TransId) {
-	txn.locks.release(addr, id)
+	txn.locks.release(addr.Flatid(), id)
 }
 
 // Release all locks used by trans id
 func (txn *Txn) releaseTxn(addrs []buf.Addr, id TransId) {
 	util.DPrintf(15, "releaseTxn: %v\n", addrs)
 	for _, a := range addrs {
-		txn.locks.release(a, id)
+		txn.locks.release(a.Flatid(), id)
 	}
 }
 
