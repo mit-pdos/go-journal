@@ -3,6 +3,7 @@ package buf
 import (
 	"fmt"
 
+	"github.com/tchajed/goose/machine"
 	"github.com/tchajed/goose/machine/disk"
 
 	"github.com/mit-pdos/goose-nfsd/util"
@@ -110,4 +111,13 @@ func (buf *Buf) IsDirty() bool {
 
 func (buf *Buf) SetDirty() {
 	buf.dirty = true
+}
+
+func (buf *Buf) Uint64Get(off uint64) uint64 {
+	return machine.UInt64Get(buf.Blk[off : off+8])
+}
+
+func (buf *Buf) Uint64Put(off, v uint64) {
+	machine.UInt64Put(buf.Blk[off:off+8], v)
+	buf.SetDirty()
 }
