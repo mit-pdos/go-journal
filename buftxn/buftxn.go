@@ -43,14 +43,13 @@ func (buftxn *BufTxn) IsLocked(addr buf.Addr) bool {
 }
 
 func (buftxn *BufTxn) ReadBufLocked(addr buf.Addr) *buf.Buf {
-	util.DPrintf(10, "ReadBufLocked: %v\n", addr)
-
 	// does this transaction already have addr locked?  (e.g.,
 	// read the inode from the inode cache, after locking it)
 	locked := buftxn.IsLocked(addr)
 	if !locked {
 		buftxn.Acquire(addr)
 	}
+	util.DPrintf(10, "ReadBufLocked: %d %v\n", buftxn.id, addr)
 	return buftxn.ReadBuf(addr)
 }
 

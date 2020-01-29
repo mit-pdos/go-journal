@@ -1,10 +1,11 @@
 package txn
 
 import (
+	"fmt"
+	"sync"
+
 	"github.com/mit-pdos/goose-nfsd/buf"
 	"github.com/mit-pdos/goose-nfsd/util"
-
-	"sync"
 )
 
 //
@@ -77,7 +78,8 @@ func (lmap *lockShard) lookupdel(addr buf.Addr) *sleepLock {
 	}
 	sl := e.(*sleepLock)
 	sl.mu.Lock()
-	if sl.holder == 0 {
+	if sl.holder == 0 && sl.nwaiter == 0 {
+		util.DPrintf(5, "del addr %v\n", addr)
 		lmap.addrs.Del(addr)
 	} else {
 		util.DPrintf(5, "don't del addr %v\n", addr)
@@ -106,12 +108,12 @@ func (lmap *lockShard) acquire(addr buf.Addr, id TransId) {
 func (lmap *lockShard) dorelease(addr buf.Addr, id TransId) bool {
 	var delete bool = true
 	sleepLock := lmap.lookup(addr)
+	util.DPrintf(5, "%d: dorelease: %v\n", id, addr)
 	if sleepLock == nil {
-		panic("dorelease")
+		panic(fmt.Sprintf("dorelease: %d %v", id, addr))
 	}
-	util.DPrintf(5, "%d: dorelease: %v %v\n", id, addr, sleepLock.holder)
 	if sleepLock.holder != id {
-		panic("release")
+		panic(fmt.Sprintf("dorelease: %v %d %d", addr, sleepLock.holder, id))
 	}
 	sleepLock.holder = 0
 	if sleepLock.nwaiter > 0 {
