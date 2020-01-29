@@ -66,6 +66,10 @@ func (buftxn *BufTxn) ReadBuf(addr buf.Addr) *buf.Buf {
 // caller has disk object (e.g., from cache), so don't read disk
 // object from disk if we don't have buf for it.
 func (buftxn *BufTxn) OverWrite(addr buf.Addr, data []byte) {
+	locked := buftxn.IsLocked(addr)
+	if !locked {
+		buftxn.Acquire(addr)
+	}
 	b := buftxn.bufs.Lookup(addr)
 	if b == nil {
 		b = buf.MkBuf(addr, data)
