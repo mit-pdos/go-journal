@@ -30,9 +30,9 @@ func MkBuf(addr Addr, blk disk.Block) *Buf {
 
 // Load the bits of a disk block into a new buf, as specified by addr
 func MkBufLoad(addr Addr, blk disk.Block) *Buf {
-	byte := addr.Off / 8
-	sz := util.RoundUp(addr.Sz, 8)
-	data := blk[byte : byte+sz]
+	bytefirst := addr.Off / 8
+	bytelast := (addr.Off + addr.Sz - 1) / 8
+	data := blk[bytefirst : bytelast+1]
 	b := &Buf{
 		Addr:  addr,
 		Blk:   data,
@@ -89,9 +89,9 @@ func (buf *Buf) Install(blk disk.Block) {
 
 // Load the bits of a disk block into buf, as specified by addr
 func (buf *Buf) Load(blk disk.Block) {
-	byte := buf.Addr.Off / 8
-	sz := util.RoundUp(buf.Addr.Sz, 8)
-	buf.Blk = blk[byte : byte+sz]
+	bytefirst := buf.Addr.Off / 8
+	bytelast := (buf.Addr.Off + buf.Addr.Sz - 1) / 8
+	buf.Blk = blk[bytefirst : bytelast+1]
 }
 
 func (buf *Buf) WriteDirect(d disk.Disk) {
