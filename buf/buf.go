@@ -69,9 +69,7 @@ func installBit(src []byte, dst []byte, dstoff uint64) {
 // Install bytes from src to dst.
 func installBytes(src []byte, dst []byte, dstoff uint64, nbit uint64) {
 	sz := nbit / 8
-	for i := uint64(0); i < sz; i++ {
-		dst[(dstoff/8)+i] = src[i]
-	}
+	copy(dst[dstoff/8:], src[:sz])
 }
 
 // Install the bits from buf into blk.  Two cases: a bit or an inode
