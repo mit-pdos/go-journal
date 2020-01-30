@@ -3,10 +3,10 @@ package wal
 import (
 	"github.com/tchajed/goose/machine"
 	"github.com/tchajed/goose/machine/disk"
+	"github.com/tchajed/marshal"
 
 	"github.com/mit-pdos/goose-nfsd/buf"
 	"github.com/mit-pdos/goose-nfsd/fs"
-	"github.com/mit-pdos/goose-nfsd/marshal"
 	"github.com/mit-pdos/goose-nfsd/util"
 
 	"sync"
@@ -108,14 +108,15 @@ func decodeHdr(blk disk.Block) *hdr {
 	}
 	dec := marshal.NewDec(blk)
 	h.end = LogPosition(dec.GetInt())
-	h.addrs = dec.GetBnums(fs.HDRADDRS)
+	h.addrs = dec.GetInts(fs.HDRADDRS)
 	return h
 }
 
-func encodeHdr(h hdr, blk disk.Block) {
-	enc := marshal.NewEnc(blk)
+func encodeHdr(h hdr) disk.Block {
+	enc := marshal.NewEnc(disk.BlockSize)
 	enc.PutInt(uint64(h.end))
-	enc.PutBnums(h.addrs)
+	enc.PutInts(h.addrs)
+	return enc.Finish()
 }
 
 // On-disk header in the second block of the log
@@ -132,14 +133,14 @@ func decodeHdr2(blk disk.Block) *hdr2 {
 	return h
 }
 
-func encodeHdr2(h hdr2, blk disk.Block) {
-	enc := marshal.NewEnc(blk)
+func encodeHdr2(h hdr2) disk.Block {
+	enc := marshal.NewEnc(disk.BlockSize)
 	enc.PutInt(uint64(h.start))
+	return enc.Finish()
 }
 
 func (l *Walog) writeHdr(h *hdr) {
-	blk := make(disk.Block, disk.BlockSize)
-	encodeHdr(*h, blk)
+	blk := encodeHdr(*h)
 	l.d.Write(uint64(LOGHDR), blk)
 }
 
@@ -150,8 +151,7 @@ func (l *Walog) readHdr() *hdr {
 }
 
 func (l *Walog) writeHdr2(h *hdr2) {
-	blk := make(disk.Block, disk.BlockSize)
-	encodeHdr2(*h, blk)
+	blk := encodeHdr2(*h)
 	l.d.Write(uint64(LOGHDR2), blk)
 }
 
