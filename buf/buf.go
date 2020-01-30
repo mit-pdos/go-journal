@@ -3,8 +3,8 @@ package buf
 import (
 	"fmt"
 
-	"github.com/tchajed/goose/machine"
 	"github.com/tchajed/goose/machine/disk"
+	"github.com/tchajed/marshal"
 
 	"github.com/mit-pdos/goose-nfsd/util"
 )
@@ -112,10 +112,13 @@ func (buf *Buf) SetDirty() {
 }
 
 func (buf *Buf) BnumGet(off uint64) Bnum {
-	return Bnum(machine.UInt64Get(buf.Blk[off : off+8]))
+	dec := marshal.NewDec(buf.Blk[off : off+8])
+	return Bnum(dec.GetInt())
 }
 
 func (buf *Buf) BnumPut(off uint64, v Bnum) {
-	machine.UInt64Put(buf.Blk[off:off+8], uint64(v))
+	enc := marshal.NewEnc(8)
+	enc.PutInt(uint64(v))
+	copy(buf.Blk[off:off+8], enc.Finish())
 	buf.SetDirty()
 }
