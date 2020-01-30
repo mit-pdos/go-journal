@@ -38,7 +38,7 @@ func (lmap *lockShard) release(addr uint64) {
 	lmap.mu.Lock()
 	delete(lmap.holders, addr)
 	lmap.mu.Unlock()
-	lmap.cond.Broadcast()
+	lmap.cond.Signal()
 }
 
 const NSHARD uint64 = 43
