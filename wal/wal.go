@@ -6,7 +6,6 @@ import (
 	"github.com/mit-pdos/goose-nfsd/buf"
 	"github.com/mit-pdos/goose-nfsd/fake-bcache/bcache"
 	"github.com/mit-pdos/goose-nfsd/util"
-	"github.com/tchajed/goose/machine"
 	"github.com/tchajed/goose/machine/disk"
 )
 
@@ -46,10 +45,8 @@ func MkLog(disk *bcache.Bcache) *Walog {
 
 	l.Recover()
 
-	// TODO: do we still need to use machine.Spawn,
-	//  or can we just use go statements?
-	machine.Spawn(func() { l.logger() })
-	machine.Spawn(func() { l.installer() })
+	go func() { l.logger() }()
+	go func() { l.installer() }()
 
 	return l
 }
