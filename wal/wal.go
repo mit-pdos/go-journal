@@ -7,7 +7,6 @@ import (
 
 	"github.com/mit-pdos/goose-nfsd/buf"
 	"github.com/mit-pdos/goose-nfsd/fake-bcache/bcache"
-	"github.com/mit-pdos/goose-nfsd/fs"
 	"github.com/mit-pdos/goose-nfsd/util"
 
 	"sync"
@@ -31,12 +30,19 @@ import (
 //  commitWait or log is full).  It may better to start logging
 //  earlier.
 //
+const (
+	HDRMETA  = uint64(8) // space for the end position
+	HDRADDRS = (disk.BlockSize - HDRMETA) / 8
+	LOGSIZE  = HDRADDRS + 2 // 2 for log header
+)
 
 type LogPosition uint64
 
-const LOGHDR = buf.Bnum(0)
-const LOGHDR2 = buf.Bnum(1)
-const LOGSTART = buf.Bnum(2)
+const (
+	LOGHDR   = buf.Bnum(0)
+	LOGHDR2  = buf.Bnum(1)
+	LOGSTART = buf.Bnum(2)
+)
 
 type BlockData struct {
 	bn  buf.Bnum
@@ -110,7 +116,7 @@ func decodeHdr(blk disk.Block) *hdr {
 	}
 	dec := marshal.NewDec(blk)
 	h.end = LogPosition(dec.GetInt())
-	h.addrs = dec.GetInts(fs.HDRADDRS)
+	h.addrs = dec.GetInts(HDRADDRS)
 	return h
 }
 
@@ -234,7 +240,7 @@ func (l *Walog) doMemAppend(bufs []BlockData) LogPosition {
 //
 
 func (l *Walog) LogSz() uint64 {
-	return fs.HDRADDRS
+	return HDRADDRS
 }
 
 // Read blkno from memLog, if present
