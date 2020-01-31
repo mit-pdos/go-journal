@@ -1,8 +1,6 @@
 package buf
 
 import (
-	"fmt"
-
 	"github.com/tchajed/goose/machine/disk"
 	"github.com/tchajed/marshal"
 
@@ -40,10 +38,6 @@ func MkBufLoad(addr Addr, blk disk.Block) *Buf {
 		dirty: false,
 	}
 	return b
-}
-
-func (buf *Buf) String() string {
-	return fmt.Sprintf("%v %v", buf.Addr, buf.dirty)
 }
 
 // Install 1 bit from src into dst, at offset bit. return new dst.
@@ -93,6 +87,14 @@ func (buf *Buf) Load(blk disk.Block) {
 	buf.Blk = blk[bytefirst : bytelast+1]
 }
 
+func (buf *Buf) IsDirty() bool {
+	return buf.dirty
+}
+
+func (buf *Buf) SetDirty() {
+	buf.dirty = true
+}
+
 func (buf *Buf) WriteDirect(d *bcache.Bcache) {
 	buf.SetDirty()
 	if buf.Addr.Sz == disk.BlockSize {
@@ -102,14 +104,6 @@ func (buf *Buf) WriteDirect(d *bcache.Bcache) {
 		buf.Install(blk)
 		d.Write(uint64(buf.Addr.Blkno), blk)
 	}
-}
-
-func (buf *Buf) IsDirty() bool {
-	return buf.dirty
-}
-
-func (buf *Buf) SetDirty() {
-	buf.dirty = true
 }
 
 func (buf *Buf) BnumGet(off uint64) Bnum {

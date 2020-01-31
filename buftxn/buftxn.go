@@ -34,12 +34,14 @@ func Begin(txn *txn.Txn) *BufTxn {
 }
 
 func (buftxn *BufTxn) IsLocked(addr buf.Addr) bool {
+	var islocked = false
 	for _, a := range buftxn.addrs {
 		if addr.Eq(a) {
-			return true
+			islocked = true
+			break
 		}
 	}
-	return false
+	return islocked
 }
 
 func (buftxn *BufTxn) ReadBufLocked(addr buf.Addr) *buf.Buf {
@@ -58,8 +60,8 @@ func (buftxn *BufTxn) ReadBuf(addr buf.Addr) *buf.Buf {
 	if b == nil {
 		buf := buftxn.txn.Load(addr)
 		buftxn.bufs.Insert(buf)
+		return buftxn.bufs.Lookup(addr)
 	}
-	b = buftxn.bufs.Lookup(addr)
 	return b
 }
 
@@ -70,7 +72,7 @@ func (buftxn *BufTxn) OverWrite(addr buf.Addr, data []byte) {
 	if !locked {
 		buftxn.Acquire(addr)
 	}
-	b := buftxn.bufs.Lookup(addr)
+	var b = buftxn.bufs.Lookup(addr)
 	if b == nil {
 		b = buf.MkBuf(addr, data)
 		buftxn.bufs.Insert(b)
@@ -118,7 +120,7 @@ func (buftxn *BufTxn) LogSzBytes() uint64 {
 // Sanity check for development
 func (buftxn *BufTxn) check() {
 	for _, b := range buftxn.bufs.DirtyBufs() {
-		found := false
+		var found = false
 		for _, a := range buftxn.addrs {
 			if b.Addr.Eq(a) {
 				found = true

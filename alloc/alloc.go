@@ -74,7 +74,8 @@ func (a *Alloc) findFreeBit(buftxn *buftxn.BufTxn) *buf.Buf {
 		}
 		num = a.incNext()
 		if num == start {
-			return nil
+			buf = nil
+			break
 		}
 		continue
 	}
