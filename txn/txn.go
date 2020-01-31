@@ -26,7 +26,6 @@ type Txn struct {
 	mu     *sync.Mutex
 	log    *wal.Walog
 	fs     *fs.FsSuper
-	locks  *lockMap // map of locks for disk objects
 	nextId TransId
 }
 
@@ -35,7 +34,6 @@ func MkTxn(fs *fs.FsSuper) *Txn {
 		mu:     new(sync.Mutex),
 		log:    wal.MkLog(fs.Disk),
 		fs:     fs,
-		locks:  mkLockMap(),
 		nextId: TransId(0),
 	}
 	return txn
@@ -59,24 +57,6 @@ func (txn *Txn) Load(addr buf.Addr) *buf.Buf {
 	blk := txn.log.Read(addr.Blkno)
 	b := buf.MkBufLoad(addr, blk)
 	return b
-}
-
-// Lock a disk object
-func (txn *Txn) Acquire(addr buf.Addr, id TransId) {
-	txn.locks.acquire(addr.Flatid(), id)
-}
-
-// Release lock on buf of trans id
-func (txn *Txn) Release(addr buf.Addr, id TransId) {
-	txn.locks.release(addr.Flatid(), id)
-}
-
-// Release all locks used by trans id
-func (txn *Txn) releaseTxn(addrs []buf.Addr, id TransId) {
-	util.DPrintf(15, "releaseTxn: %v\n", addrs)
-	for _, a := range addrs {
-		txn.locks.release(a.Flatid(), id)
-	}
 }
 
 // Last buf in bufs that has data for the same block as the first buf
@@ -143,11 +123,8 @@ func (txn *Txn) doCommit(bufs []*buf.Buf, abort bool) (wal.LogPosition, bool) {
 	return n, ok
 }
 
-// Commit dirty blocks of the transaction into the log, and perhaps
-// wait. In either case, release the transaction's locked addresses.
-// addrs may include addresses beyond the ones in bufs; for example,
-// disk objects that the transaction has read, but not modified.
-func (txn *Txn) CommitWait(addrs []buf.Addr, bufs []*buf.Buf, wait bool, abort bool, id TransId) bool {
+// Commit dirty bufs of the transaction into the log, and perhaps wait.
+func (txn *Txn) CommitWait(bufs []*buf.Buf, wait bool, abort bool, id TransId) bool {
 	var commit = true
 	if len(bufs) > 0 {
 		n, ok := txn.doCommit(bufs, abort)
@@ -162,13 +139,11 @@ func (txn *Txn) CommitWait(addrs []buf.Addr, bufs []*buf.Buf, wait bool, abort b
 	} else {
 		util.DPrintf(5, "commit read-only trans\n")
 	}
-	txn.releaseTxn(addrs, id)
 	return commit
 }
 
-func (txn *Txn) Flush(addrs []buf.Addr, id TransId) bool {
+func (txn *Txn) Flush() bool {
 	txn.log.WaitFlushMemLog()
-	txn.releaseTxn(addrs, id)
 	return true
 }
 

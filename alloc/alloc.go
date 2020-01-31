@@ -92,7 +92,7 @@ func (a *Alloc) lockBit(buftxn *buftxn.BufTxn, n uint64) (*buf.Buf, bool) {
 		b = buftxn.ReadBuf(addr)
 		alreadylocked = true
 	} else {
-		b = buftxn.ReadBufLocked(addr)
+		b = buftxn.ReadBitLocked(addr)
 	}
 	util.DPrintf(15, "lockBit: %v\n", b)
 	return b, alreadylocked
