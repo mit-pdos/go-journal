@@ -1,14 +1,11 @@
 package txn
 
 import (
-	"github.com/tchajed/goose/machine/disk"
-
 	"github.com/mit-pdos/goose-nfsd/buf"
 	"github.com/mit-pdos/goose-nfsd/fs"
 	"github.com/mit-pdos/goose-nfsd/util"
 	"github.com/mit-pdos/goose-nfsd/wal"
 
-	"sort"
 	"sync"
 )
 
@@ -89,40 +86,30 @@ func lastBuf(bufs []*buf.Buf) uint64 {
 	return i
 }
 
-// Install bufs that contain data for the same block
-func (txn *Txn) installBlock(blk disk.Block, bufs []*buf.Buf) {
-	l := uint64(len(bufs))
-	util.DPrintf(5, "installBlock %v #bufs %d\n", bufs[0].Addr.Blkno, l)
-	for i := uint64(0); i < l; i++ {
-		bufs[i].Install(blk)
-	}
-}
-
 // Installs the txn's bufs into their blocks and returns the blocks.
 // A buf may only partially update a disk block and several bufs may
 // apply to the same disk block. Assume caller holds commit lock.
 func (txn *Txn) installBufs(bufs []*buf.Buf) []wal.BlockData {
 	var blks = make([]wal.BlockData, 0)
-	sort.Slice(bufs, func(i, j int) bool {
-		return bufs[i].Addr.Blkno < bufs[j].Addr.Blkno
-	})
-	l := uint64(len(bufs))
-	for i := uint64(0); i < l; {
-		n := lastBuf(bufs[i:])
-		util.DPrintf(15, "lastbuf %v %d\n", bufs[i].Addr, n)
+	var bufsByBlock = make(map[buf.Bnum][]*buf.Buf)
+	for _, b := range bufs {
+		bufsByBlock[b.Addr.Blkno] = append(bufsByBlock[b.Addr.Blkno], b)
+	}
+	for blkno, bufs := range bufsByBlock {
 		var blk []byte
-		blkno := bufs[i].Addr.Blkno
-		if txn.fs.DiskBlockSize(bufs[i].Addr) {
-			// overwrite complete block
-			blk = bufs[i].Blk
-		} else {
-			// read block blkno and install
-			blk = txn.log.Read(blkno)
-			txn.installBlock(blk, bufs[i:i+n])
+		for _, b := range bufs {
+			if txn.fs.DiskBlockSize(b.Addr) {
+				// overwrite complete block
+				blk = b.Blk
+			} else {
+				if blk == nil {
+					blk = txn.log.Read(blkno)
+				}
+				b.Install(blk)
+			}
 		}
-		b := wal.MkBlockData(blkno, blk)
-		blks = append(blks, b)
-		i = i + n
+		walblk := wal.MkBlockData(blkno, blk)
+		blks = append(blks, walblk)
 	}
 	return blks
 }
