@@ -3,8 +3,9 @@ package buf
 import (
 	"github.com/tchajed/goose/machine/disk"
 
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestInstallOneBit(t *testing.T) {
