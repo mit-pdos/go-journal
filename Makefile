@@ -12,7 +12,7 @@ COQ_PKGDIR := Goose/github_com/mit_pdos/goose_nfsd
 all: $(patsubst %,${COQ_PKGDIR}/%.v,$(GOOSE_DIRS))
 
 ${COQ_PKGDIR}/%.v: % %/*
-	$(GOPATH)/bin/goose -package github.com/mit-pdos/goose-nfsd/$< -out $@ ./$<
+	$(GOPATH)/bin/goose -package github.com/mit-pdos/goose-nfsd/$< -out Goose ./$<
 
 clean:
-	rm -f Goose
+	rm -rf Goose
