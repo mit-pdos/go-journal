@@ -13,11 +13,9 @@ import (
 )
 
 //
-// txn manages transactions created by buftxn layer.  It has a map of
-// locked disk objects.  Transactions acquire locks on addresses
-// incrementally and release them on commit.  The upper layers are
-// responsible for lock ordering.  txn implements commit using a
-// write-ahead log.
+// txn atomically installs modified buffers in their corresponding
+// disk blocks and writes the blocks to the write-ahead log.  The
+// upper layers are responsible for locking and lock ordering.
 //
 
 type TransId uint64
