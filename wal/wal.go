@@ -93,7 +93,7 @@ func MkLog(disk *bcache.Bcache) *Walog {
 	}
 	util.DPrintf(1, "mkLog: size %d\n", l.LogSz())
 
-	l.recover()
+	l.Recover()
 
 	// TODO: do we still need to use machine.Spawn,
 	//  or can we just use go statements?
@@ -169,12 +169,12 @@ func (l *Walog) readHdr2() *hdr2 {
 	return h
 }
 
-func (l *Walog) recover() {
+func (l *Walog) Recover() {
 	h := l.readHdr()
 	h2 := l.readHdr2()
 	l.memStart = h2.start
 	l.diskEnd = h.end
-	util.DPrintf(1, "recover %d %d\n", l.memStart, l.diskEnd)
+	util.DPrintf(1, "Recover %d %d\n", l.memStart, l.diskEnd)
 	for pos := h2.start; pos < h.end; pos++ {
 		addr := h.addrs[uint64(pos)%l.LogSz()]
 		util.DPrintf(1, "recover block %d\n", addr)
