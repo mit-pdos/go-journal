@@ -9,7 +9,7 @@ GOOSE_DIRS	:= buf util wal alloc bcache fs buftxn cache fh fstxn txn
 
 COQ_PKGDIR := Goose/github_com/mit_pdos/goose_nfsd
 
-all:	$(patsubst %,${COQ_PKGDIR}/%.v,$(GOOSE_DIRS))
+all: $(patsubst %,${COQ_PKGDIR}/%.v,$(GOOSE_DIRS))
 
 ${COQ_PKGDIR}/%.v: % %/*
 	$(GOPATH)/bin/goose -package github.com/mit-pdos/goose-nfsd/$< -out $@ ./$<
