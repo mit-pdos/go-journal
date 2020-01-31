@@ -6,6 +6,7 @@ import (
 	"github.com/tchajed/goose/machine/disk"
 	"github.com/tchajed/marshal"
 
+	"github.com/mit-pdos/goose-nfsd/bcache"
 	"github.com/mit-pdos/goose-nfsd/util"
 )
 
@@ -92,7 +93,7 @@ func (buf *Buf) Load(blk disk.Block) {
 	buf.Blk = blk[bytefirst : bytelast+1]
 }
 
-func (buf *Buf) WriteDirect(d disk.Disk) {
+func (buf *Buf) WriteDirect(d *bcache.Bcache) {
 	buf.SetDirty()
 	if buf.Addr.Sz == disk.BlockSize {
 		d.Write(uint64(buf.Addr.Blkno), buf.Blk)

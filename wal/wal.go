@@ -5,6 +5,7 @@ import (
 	"github.com/tchajed/goose/machine/disk"
 	"github.com/tchajed/marshal"
 
+	"github.com/mit-pdos/goose-nfsd/bcache"
 	"github.com/mit-pdos/goose-nfsd/buf"
 	"github.com/mit-pdos/goose-nfsd/fs"
 	"github.com/mit-pdos/goose-nfsd/util"
@@ -49,7 +50,7 @@ func MkBlockData(bn buf.Bnum, blk disk.Block) BlockData {
 
 type Walog struct {
 	memLock *sync.Mutex
-	d       disk.Disk
+	d       *bcache.Bcache
 
 	condLogger  *sync.Cond
 	condInstall *sync.Cond
@@ -68,7 +69,7 @@ type Walog struct {
 	memLogMap map[buf.Bnum]LogPosition
 }
 
-func MkLog(disk disk.Disk) *Walog {
+func MkLog(disk *bcache.Bcache) *Walog {
 	ml := new(sync.Mutex)
 	l := &Walog{
 		d:           disk,
@@ -78,6 +79,7 @@ func MkLog(disk disk.Disk) *Walog {
 		memLog:      make([]BlockData, 0),
 		memStart:    0,
 		diskEnd:     0,
+		nextDiskEnd: 0,
 		shutdown:    false,
 		nthread:     0,
 		condShut:    sync.NewCond(ml),

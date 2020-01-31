@@ -28,17 +28,17 @@ func (bmap *BufMap) Del(addr Addr) {
 }
 
 func (bmap *BufMap) Ndirty() uint64 {
-	n := uint64(0)
+	var n uint64 = 0
 	for _, buf := range bmap.addrs {
 		if buf.dirty {
-			n += 1
+			n++
 		}
 	}
 	return n
 }
 
 func (bmap *BufMap) DirtyBufs() []*Buf {
-	bufs := make([]*Buf, 0)
+	var bufs []*Buf
 	for _, buf := range bmap.addrs {
 		if buf.dirty {
 			bufs = append(bufs, buf)
