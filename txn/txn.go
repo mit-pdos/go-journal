@@ -143,7 +143,7 @@ func (txn *Txn) CommitWait(addrs []buf.Addr, bufs []*buf.Buf, wait bool, abort b
 			commit = false
 		} else {
 			if wait {
-				txn.log.LogAppendWait(n)
+				txn.log.Flush(n)
 			}
 		}
 	} else {

@@ -145,10 +145,12 @@ func (l *Walog) MemAppend(bufs []BlockData) (LogPosition, bool) {
 	return txn, true
 }
 
-// Wait until logger has appended in-memory log up to txn to on-disk
-// log
-func (l *Walog) LogAppendWait(txn LogPosition) {
-	util.DPrintf(1, "LogAppendWait: commit till txn %d\n", txn)
+// Flush flushes a transaction (and all preceding transactions)
+//
+// The implementation waits until the logger has appended in-memory log up to
+// txn to on-disk log.
+func (l *Walog) Flush(txn LogPosition) {
+	util.DPrintf(1, "Flush: commit till txn %d\n", txn)
 	l.memLock.Lock()
 	l.condLogger.Broadcast()
 	if txn > l.nextDiskEnd {
@@ -171,7 +173,7 @@ func (l *Walog) WaitFlushMemLog() {
 	n := l.memStart + LogPosition(len(l.memLog))
 	l.memLock.Unlock()
 
-	l.LogAppendWait(n)
+	l.Flush(n)
 }
 
 // Shutdown logger and installer

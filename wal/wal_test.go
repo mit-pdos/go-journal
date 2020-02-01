@@ -33,10 +33,11 @@ func TestWal(t *testing.T) {
 	suite.Run(t, new(WalSuite))
 }
 
-func (suite *WalSuite) checkMemAppend(txn []BlockData) {
-	_, ok := suite.l.MemAppend(txn)
+func (suite *WalSuite) checkMemAppend(txn []BlockData) LogPosition {
+	pos, ok := suite.l.MemAppend(txn)
 	suite.Equalf(true, ok,
 		"mem append of %v blocks failed", len(txn))
+	return pos
 }
 
 func mkBlock(b byte) disk.Block {
@@ -79,11 +80,11 @@ func (suite *WalSuite) TestMultiTxnReadWrite() {
 
 func (suite *WalSuite) TestFlush() {
 	l := suite.l
-	l.MemAppend([]BlockData{
+	pos, _ := l.MemAppend([]BlockData{
 		MkBlockData(2, block1),
 		MkBlockData(1, block1),
 	})
-	l.WaitFlushMemLog()
+	l.Flush(pos)
 	l.MemAppend([]BlockData{
 		MkBlockData(3, block1),
 		MkBlockData(2, block2),
@@ -124,8 +125,8 @@ func (suite *WalSuite) TestShutdownQuiescent() {
 
 func (suite *WalSuite) TestShutdownFlushed() {
 	l := suite.l
-	suite.checkMemAppend(contiguousTxn(1, 3, block1))
-	l.WaitFlushMemLog()
+	pos := suite.checkMemAppend(contiguousTxn(1, 3, block1))
+	l.Flush(pos)
 	l.Shutdown()
 }
 
@@ -140,8 +141,8 @@ func (suite *WalSuite) TestShutdownInProgress() {
 func (suite *WalSuite) TestRecoverFlushed() {
 	l := suite.l
 	l.MemAppend(contiguousTxn(1, 3, block1))
-	l.MemAppend(contiguousTxn(20, 10, block2))
-	l.WaitFlushMemLog()
+	pos, _ := l.MemAppend(contiguousTxn(20, 10, block2))
+	l.Flush(pos)
 
 	l = suite.restart()
 	suite.Equal(block1, l.Read(2))
