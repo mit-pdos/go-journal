@@ -3,10 +3,11 @@ package wal
 import (
 	"sync"
 
+	"github.com/tchajed/goose/machine/disk"
+
 	"github.com/mit-pdos/goose-nfsd/buf"
 	"github.com/mit-pdos/goose-nfsd/fake-bcache/bcache"
 	"github.com/mit-pdos/goose-nfsd/util"
-	"github.com/tchajed/goose/machine/disk"
 )
 
 func (l *Walog) Recover() {
@@ -16,9 +17,9 @@ func (l *Walog) Recover() {
 	l.diskEnd = h.end
 	util.DPrintf(1, "Recover %d %d\n", l.memStart, l.diskEnd)
 	for pos := h2.start; pos < h.end; pos++ {
-		addr := h.addrs[uint64(pos)%l.LogSz()]
+		addr := h.addrs[uint64(pos)%LOGSZ]
 		util.DPrintf(1, "recover block %d\n", addr)
-		blk := l.d.Read(uint64(LOGSTART) + (uint64(pos) % l.LogSz()))
+		blk := l.d.Read(posToDiskAddr(pos))
 		b := MkBlockData(addr, blk)
 		l.memLog = append(l.memLog, b)
 	}
@@ -41,7 +42,7 @@ func MkLog(disk *bcache.Bcache) *Walog {
 		condShut:    sync.NewCond(ml),
 		memLogMap:   make(map[buf.Bnum]LogPosition),
 	}
-	util.DPrintf(1, "mkLog: size %d\n", l.LogSz())
+	util.DPrintf(1, "mkLog: size %d\n", LOGSZ)
 
 	l.Recover()
 
@@ -122,14 +123,14 @@ func (l *Walog) Read(blkno buf.Bnum) disk.Block {
 // Append to in-memory log. Returns false, if bufs don't fit.
 // Otherwise, returns the txn for this append.
 func (l *Walog) MemAppend(bufs []BlockData) (LogPosition, bool) {
-	if uint64(len(bufs)) > l.LogSz() {
+	if uint64(len(bufs)) > LOGSZ {
 		return 0, false
 	}
 
 	var txn LogPosition = 0
 	l.memLock.Lock()
 	for {
-		if uint64(l.memStart)+uint64(len(l.memLog))-uint64(l.diskEnd)+uint64(len(bufs)) > l.LogSz() {
+		if uint64(l.memStart)+uint64(len(l.memLog))-uint64(l.diskEnd)+uint64(len(bufs)) > LOGSZ {
 			util.DPrintf(5, "memAppend: log is full; try again")
 			// commit everything, stable and unstable trans
 			l.nextDiskEnd = l.memStart + LogPosition(len(l.memLog))
@@ -164,7 +165,7 @@ func (l *Walog) LogAppendWait(txn LogPosition) {
 }
 
 // Wait until last started transaction has been appended to log.  If
-// it is logged, then all preceeding transactions are also logged.
+// it is logged, then all preceding transactions are also logged.
 func (l *Walog) WaitFlushMemLog() {
 	l.memLock.Lock()
 	n := l.memStart + LogPosition(len(l.memLog))

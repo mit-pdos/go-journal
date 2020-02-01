@@ -9,13 +9,15 @@ import (
 // Logger writes blocks from the in-memory log to the on-disk log
 //
 
-func (l *Walog) logBlocks(memend LogPosition, memstart LogPosition, diskend LogPosition, bufs []BlockData) {
+func (l *Walog) logBlocks(memend LogPosition, memstart LogPosition,
+	diskend LogPosition, bufs []BlockData) {
 	for pos := diskend; pos < memend; pos++ {
 		buf := bufs[pos-diskend]
 		blk := buf.blk
 		blkno := buf.bn
-		util.DPrintf(5, "logBlocks: %d to log block %d\n", blkno, pos)
-		l.d.Write(uint64(LOGSTART)+(uint64(pos)%l.LogSz()), blk)
+		util.DPrintf(5,
+			"logBlocks: %d to log block %d\n", blkno, pos)
+		l.d.Write(posToDiskAddr(pos), blk)
 	}
 }
 
@@ -23,13 +25,10 @@ func (l *Walog) logBlocks(memend LogPosition, memstart LogPosition, diskend LogP
 func (l *Walog) logAppend() bool {
 	// Wait until there is sufficient space on disk for the entire
 	// in-memory log (i.e., the installer must catch up).
-	for {
-		if uint64(len(l.memLog)) <= l.LogSz() {
-			break
-		}
-
+	for uint64(len(l.memLog)) > LOGSZ {
 		l.condInstall.Wait()
 	}
+	// establishes uint64(len(l.memLog)) <= LOGSZ
 
 	memstart := l.memStart
 	memlog := l.memLog
@@ -44,10 +43,10 @@ func (l *Walog) logAppend() bool {
 
 	l.logBlocks(memend, memstart, diskend, newbufs)
 
-	addrs := make([]buf.Bnum, l.LogSz())
+	addrs := make([]buf.Bnum, HDRADDRS)
 	for i := uint64(0); i < uint64(memend-memstart); i++ {
 		pos := memstart + LogPosition(i)
-		addrs[uint64(pos)%l.LogSz()] = memlog[i].bn
+		addrs[uint64(pos)%LOGSZ] = memlog[i].bn
 	}
 	newh := &hdr{
 		end:   memend,

@@ -160,7 +160,7 @@ func (txn *Txn) Flush(addrs []buf.Addr, id TransId) bool {
 }
 
 func (txn *Txn) LogSz() uint64 {
-	return txn.log.LogSz()
+	return wal.LOGSZ
 }
 
 func (txn *Txn) Shutdown() {

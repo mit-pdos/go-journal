@@ -27,9 +27,10 @@ import (
 )
 
 const (
-	HDRMETA  = uint64(8) // space for the end position
-	HDRADDRS = (disk.BlockSize - HDRMETA) / 8
-	LOGSIZE  = HDRADDRS + 2 // 2 for log header
+	HDRMETA       = uint64(8) // space for the end position
+	HDRADDRS      = (disk.BlockSize - HDRMETA) / 8
+	LOGSZ         = HDRADDRS
+	LOGDISKBLOCKS = HDRADDRS + 2 // 2 for log header
 )
 
 type LogPosition uint64
@@ -69,10 +70,6 @@ type Walog struct {
 
 	// For speeding up reads:
 	memLogMap map[buf.Bnum]LogPosition
-}
-
-func (l *Walog) LogSz() uint64 {
-	return HDRADDRS
 }
 
 // On-disk header in the first block of the log
@@ -139,4 +136,8 @@ func (l *Walog) readHdr2() *hdr2 {
 	blk := l.d.Read(uint64(LOGHDR2))
 	h := decodeHdr2(blk)
 	return h
+}
+
+func posToDiskAddr(pos LogPosition) uint64 {
+	return LOGSTART + uint64(pos)%LOGSZ
 }
