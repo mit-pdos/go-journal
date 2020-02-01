@@ -9,6 +9,36 @@ import (
 	"github.com/mit-pdos/goose-nfsd/fake-bcache/bcache"
 )
 
+type WalSuite struct {
+	suite.Suite
+	d disk.Disk
+	l *Walog
+}
+
+func (suite *WalSuite) SetupTest() {
+	suite.d = disk.NewMemDisk(100000)
+	disk.Init(suite.d)
+	cache := bcache.MkBcache()
+	suite.l = MkLog(cache)
+}
+
+func (suite *WalSuite) restart() *Walog {
+	suite.l.Shutdown()
+	cache := bcache.MkBcache()
+	suite.l = MkLog(cache)
+	return suite.l
+}
+
+func TestWal(t *testing.T) {
+	suite.Run(t, new(WalSuite))
+}
+
+func (suite *WalSuite) checkMemAppend(txn []BlockData) {
+	_, ok := suite.l.MemAppend(txn)
+	suite.Equalf(true, ok,
+		"mem append of %v blocks failed", len(txn))
+}
+
 func mkBlock(b byte) disk.Block {
 	block := make(disk.Block, disk.BlockSize)
 	for i := range block {
@@ -20,21 +50,6 @@ func mkBlock(b byte) disk.Block {
 var block0 = mkBlock(0)
 var block1 = mkBlock(1)
 var block2 = mkBlock(2)
-
-type WalSuite struct {
-	suite.Suite
-	l *Walog
-}
-
-func (suite *WalSuite) SetupTest() {
-	disk.Init(disk.NewMemDisk(100000))
-	d := bcache.MkBcache()
-	suite.l = MkLog(d)
-}
-
-func TestWal(t *testing.T) {
-	suite.Run(t, new(WalSuite))
-}
 
 func (suite *WalSuite) TestMemReadWrite() {
 	l := suite.l
@@ -93,8 +108,8 @@ func contiguousTxn(start uint64, numWrites int, b disk.Block) []BlockData {
 func (suite *WalSuite) TestTxnOverflowingMemLog() {
 	l := suite.l
 	// leaves one address in the memLog
-	l.MemAppend(contiguousTxn(1, int(LOGSZ-1), block1))
-	l.MemAppend(contiguousTxn(LOGSZ+10, 2, block2))
+	suite.checkMemAppend(contiguousTxn(1, int(LOGSZ-1), block1))
+	suite.checkMemAppend(contiguousTxn(LOGSZ+10, 2, block2))
 	// when this finishes, the first transaction should be flushed
 	suite.Equal(block1, l.Read(1),
 		"first transaction should be on disk")
@@ -109,7 +124,7 @@ func (suite *WalSuite) TestShutdownQuiescent() {
 
 func (suite *WalSuite) TestShutdownFlushed() {
 	l := suite.l
-	l.MemAppend(contiguousTxn(1, 3, block1))
+	suite.checkMemAppend(contiguousTxn(1, 3, block1))
 	l.WaitFlushMemLog()
 	l.Shutdown()
 }
@@ -118,6 +133,17 @@ func (suite *WalSuite) TestShutdownInProgress() {
 	l := suite.l
 	l.MemAppend(contiguousTxn(1, 3, block1))
 	l.MemAppend(contiguousTxn(1, 10, block2))
-	l.MemAppend(contiguousTxn(1, int(LOGSZ-3), block1))
+	suite.checkMemAppend(contiguousTxn(1, int(LOGSZ-3), block1))
 	l.Shutdown()
+}
+
+func (suite *WalSuite) TestRecoverFlushed() {
+	l := suite.l
+	l.MemAppend(contiguousTxn(1, 3, block1))
+	l.MemAppend(contiguousTxn(20, 10, block2))
+	l.WaitFlushMemLog()
+
+	l = suite.restart()
+	suite.Equal(block1, l.Read(2))
+	suite.Equal(block2, l.Read(20))
 }
