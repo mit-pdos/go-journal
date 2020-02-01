@@ -25,6 +25,7 @@ type Txn struct {
 	fs     *fs.FsSuper
 	locks  *lockMap // map of locks for disk objects
 	nextId TransId
+	pos    wal.LogPosition // highest un-flushed log position
 }
 
 func MkTxn(fs *fs.FsSuper) *Txn {
@@ -34,6 +35,7 @@ func MkTxn(fs *fs.FsSuper) *Txn {
 		fs:     fs,
 		locks:  mkLockMap(),
 		nextId: TransId(0),
+		pos:    wal.LogPosition(0),
 	}
 	return txn
 }
@@ -144,6 +146,8 @@ func (txn *Txn) CommitWait(addrs []buf.Addr, bufs []*buf.Buf, wait bool, abort b
 		} else {
 			if wait {
 				txn.log.Flush(n)
+			} else {
+				txn.pos = n
 			}
 		}
 	} else {
@@ -154,7 +158,8 @@ func (txn *Txn) CommitWait(addrs []buf.Addr, bufs []*buf.Buf, wait bool, abort b
 }
 
 func (txn *Txn) Flush(addrs []buf.Addr, id TransId) bool {
-	txn.log.WaitFlushMemLog()
+	// NOTE: this is coarse-grained and unattached to the transaction ID
+	txn.log.Flush(txn.pos)
 	txn.releaseTxn(addrs, id)
 	return true
 }

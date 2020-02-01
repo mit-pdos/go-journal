@@ -166,16 +166,6 @@ func (l *Walog) Flush(txn LogPosition) {
 	l.memLock.Unlock()
 }
 
-// Wait until last started transaction has been appended to log.  If
-// it is logged, then all preceding transactions are also logged.
-func (l *Walog) WaitFlushMemLog() {
-	l.memLock.Lock()
-	n := l.memStart + LogPosition(len(l.memLog))
-	l.memLock.Unlock()
-
-	l.Flush(n)
-}
-
 // Shutdown logger and installer
 func (l *Walog) Shutdown() {
 	util.DPrintf(1, "shutdown wal\n")
