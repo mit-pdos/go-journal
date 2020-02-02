@@ -145,6 +145,26 @@ func (suite *WalSuite) TestRecoverFlushed() {
 	l.Flush(pos)
 
 	l = suite.restart()
+	suite.Equal(block0, l.Read(0))
 	suite.Equal(block1, l.Read(2))
 	suite.Equal(block2, l.Read(20))
+}
+
+func (suite *WalSuite) TestRecoverPending() {
+	l := suite.l
+	l.MemAppend(contiguousTxn(1, 3, block1))
+	l.MemAppend(contiguousTxn(20, 10, block2))
+
+	l = suite.restart()
+	suite.Equal(block0, l.Read(0))
+	// the transactions may or may not have committed; check for atomicity
+	suite.Equal(l.Read(1), l.Read(2),
+		"first txn non-atomic")
+	suite.Equal(l.Read(1), l.Read(3),
+		"first txn non-atomic")
+
+	suite.Equal(l.Read(20), l.Read(21),
+		"second txn non-atomic")
+	suite.Equal(l.Read(20), l.Read(20+9),
+		"second txn non-atomic")
 }
