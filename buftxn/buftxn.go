@@ -16,10 +16,10 @@ import (
 
 type BufTxn struct {
 	txn   *txn.Txn
-	bufs  *buf.BufMap // map of bufs read/written by trans
+	bufs  *buf.BufMap // map of bufs read/written by this transaction
 	Id    txn.TransId
-	locks *addrlock.LockMap // bit-map addresses locked by this transaction
-	addrs []buf.Addr        // locked addrs for releaseTxn
+	locks *addrlock.LockMap // a shared map of addresses to locks
+	addrs []buf.Addr        // locked addrs of this transaction
 }
 
 func Begin(txn *txn.Txn, locks *addrlock.LockMap) *BufTxn {
