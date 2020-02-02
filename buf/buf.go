@@ -74,7 +74,7 @@ func installBytes(src []byte, dst []byte, dstoff uint64, nbit uint64) {
 
 // Install the bits from buf into blk.  Two cases: a bit or an inode
 func (buf *Buf) Install(blk disk.Block) {
-	util.DPrintf(20, "%v: install %v\n", buf.Addr, blk)
+	util.DPrintf(1, "%v: install\n", buf.Addr)
 	if buf.Addr.Sz == 1 {
 		installBit(buf.Blk, blk, buf.Addr.Off)
 	} else if buf.Addr.Sz%8 == 0 && buf.Addr.Off%8 == 0 {

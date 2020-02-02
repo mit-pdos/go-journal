@@ -70,7 +70,7 @@ func lastBuf(bufs []*buf.Buf) uint64 {
 // Install bufs that contain data for the same block
 func (txn *Txn) installBlock(blk disk.Block, bufs []*buf.Buf) {
 	l := uint64(len(bufs))
-	util.DPrintf(5, "installBlock %v #bufs %d\n", bufs[0].Addr.Blkno, l)
+	util.DPrintf(1, "installBlock %v #bufs %d\n", bufs[0].Addr.Blkno, l)
 	for i := uint64(0); i < l; i++ {
 		bufs[i].Install(blk)
 	}
