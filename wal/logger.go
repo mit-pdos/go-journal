@@ -5,10 +5,6 @@ import (
 	"github.com/mit-pdos/goose-nfsd/util"
 )
 
-//
-// Logger writes blocks from the in-memory log to the on-disk log
-//
-
 func (l *Walog) logBlocks(memend LogPosition, memstart LogPosition,
 	diskend LogPosition, bufs []BlockData) {
 	for pos := diskend; pos < memend; pos++ {
@@ -21,7 +17,9 @@ func (l *Walog) logBlocks(memend LogPosition, memstart LogPosition,
 	}
 }
 
-// Logger holds logLock
+// logAppend waits for disk log space and then appends to the log
+//
+// assumes caller holds memLock
 func (l *Walog) logAppend() bool {
 	// Wait until there is sufficient space on disk for the entire
 	// in-memory log (i.e., the installer must catch up).
@@ -63,6 +61,10 @@ func (l *Walog) logAppend() bool {
 	return true
 }
 
+// logger writes blocks from the in-memory log to the on-disk log
+//
+// Operates by continuously polling for in-memory transactions, driven by
+// condLogger for scheduling
 func (l *Walog) logger() {
 	l.memLock.Lock()
 	l.nthread += 1

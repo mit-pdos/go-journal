@@ -29,8 +29,14 @@ func (l *Walog) installBlocks(bufs []BlockData) {
 	}
 }
 
-// Installer holds logLock
-// XXX absorp
+// logInstall installs one on-disk transaction from the disk log to the data
+// region.
+//
+// Returns the number of blocks written from memory and the old diskEnd
+// TODO(tchajed): why is this called installEnd?
+//
+// Installer holds memLock
+// XXX absorb
 func (l *Walog) logInstall() (uint64, LogPosition) {
 	installEnd := l.diskEnd
 	bufs := l.memLog[:installEnd-l.memStart]
