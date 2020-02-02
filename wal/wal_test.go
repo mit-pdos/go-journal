@@ -17,14 +17,13 @@ type WalSuite struct {
 
 func (suite *WalSuite) SetupTest() {
 	suite.d = disk.NewMemDisk(100000)
-	disk.Init(suite.d)
-	cache := bcache.MkBcache()
+	cache := bcache.MkBcache(suite.d)
 	suite.l = MkLog(cache)
 }
 
 func (suite *WalSuite) restart() *Walog {
 	suite.l.Shutdown()
-	cache := bcache.MkBcache()
+	cache := bcache.MkBcache(suite.d)
 	suite.l = MkLog(cache)
 	return suite.l
 }
