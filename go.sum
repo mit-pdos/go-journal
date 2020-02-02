@@ -41,6 +41,8 @@ github.com/tchajed/goose v0.0.0-20200130134304-4055fa06fc22 h1:3sqUFzI2s5Idc6KDB
 github.com/tchajed/goose v0.0.0-20200130134304-4055fa06fc22/go.mod h1:loG5kz9thxiWJVPaDU41DtQIj3j2rHhA1spGb4RucvI=
 github.com/tchajed/goose v0.0.0-20200131191106-abf8ad6e8bee h1:EJgToJeXrhAYe3ltS1ISKIcDfUhMZe5GDQKA+vx0lEw=
 github.com/tchajed/goose v0.0.0-20200131191106-abf8ad6e8bee/go.mod h1:Qr/athaN2cbDMsvCq2bT7Vw1sO47BnNBzCijMJcbge4=
+github.com/tchajed/goose v0.0.0-20200201205353-484680400e88 h1:UgoMiVujwihyrlHUBPEWfSKGKAN4ZuEGEJ9YJFOMOro=
+github.com/tchajed/goose v0.0.0-20200201205353-484680400e88/go.mod h1:QvJl4vcQ1GOGxqkwQVBMJ6m0rBM28GSnjMAinSknUy4=
 github.com/tchajed/mailboat v0.0.0-20191026015926-338a5b81ac1d/go.mod h1:dmgNTEH0kreeKMWd+ntzsrp7ie2LWHGMe7VxP6d1Aew=
 github.com/tchajed/mailboat v0.1.0/go.mod h1:aKa/T1YCMVZFM2xbXnMNyp9r4k0pPni4+sJ8GoY51Hw=
 github.com/tchajed/mailboat v0.2.0/go.mod h1:aKa/T1YCMVZFM2xbXnMNyp9r4k0pPni4+sJ8GoY51Hw=
