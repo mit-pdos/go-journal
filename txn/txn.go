@@ -5,7 +5,7 @@ import (
 
 	"github.com/mit-pdos/goose-nfsd/addr"
 	"github.com/mit-pdos/goose-nfsd/buf"
-	"github.com/mit-pdos/goose-nfsd/fs"
+	"github.com/mit-pdos/goose-nfsd/super"
 	"github.com/mit-pdos/goose-nfsd/util"
 	"github.com/mit-pdos/goose-nfsd/wal"
 
@@ -24,11 +24,11 @@ type TransId uint64
 type Txn struct {
 	mu     *sync.Mutex
 	log    *wal.Walog
-	fs     *fs.FsSuper
+	fs     *super.FsSuper
 	nextId TransId
 }
 
-func MkTxn(fs *fs.FsSuper) *Txn {
+func MkTxn(fs *super.FsSuper) *Txn {
 	txn := &Txn{
 		mu:     new(sync.Mutex),
 		log:    wal.MkLog(fs.Disk),
