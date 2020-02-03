@@ -9,8 +9,8 @@ import (
 )
 
 //
-// Txn layer used by file system.  A transaction has locked bitmap
-// addresses and buffers that it has read/written.
+// Txn layer used by file system.  A transaction has buffers that it
+// has read/written.
 //
 
 type BufTxn struct {
@@ -29,7 +29,6 @@ func Begin(txn *txn.Txn) *BufTxn {
 	return trans
 }
 
-// Used for inodes and data blocks
 func (buftxn *BufTxn) ReadBuf(addr buf.Addr) *buf.Buf {
 	b := buftxn.bufs.Lookup(addr)
 	if b == nil {
