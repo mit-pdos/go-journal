@@ -16,7 +16,7 @@ type WalSuite struct {
 }
 
 func (suite *WalSuite) SetupTest() {
-	suite.d = disk.NewMemDisk(100000)
+	suite.d = disk.NewMemDisk(10000)
 	cache := bcache.MkBcache(suite.d)
 	suite.l = MkLog(cache)
 }
