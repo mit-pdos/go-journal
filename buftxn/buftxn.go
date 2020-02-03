@@ -3,6 +3,7 @@ package buftxn
 import (
 	"github.com/tchajed/goose/machine/disk"
 
+	"github.com/mit-pdos/goose-nfsd/addr"
 	"github.com/mit-pdos/goose-nfsd/buf"
 	"github.com/mit-pdos/goose-nfsd/txn"
 	"github.com/mit-pdos/goose-nfsd/util"
@@ -29,7 +30,7 @@ func Begin(txn *txn.Txn) *BufTxn {
 	return trans
 }
 
-func (buftxn *BufTxn) ReadBuf(addr buf.Addr) *buf.Buf {
+func (buftxn *BufTxn) ReadBuf(addr addr.Addr) *buf.Buf {
 	b := buftxn.bufs.Lookup(addr)
 	if b == nil {
 		buf := buftxn.txn.Load(addr)
@@ -40,7 +41,7 @@ func (buftxn *BufTxn) ReadBuf(addr buf.Addr) *buf.Buf {
 }
 
 // Caller overwrites addr without reading it
-func (buftxn *BufTxn) OverWrite(addr buf.Addr, data []byte) {
+func (buftxn *BufTxn) OverWrite(addr addr.Addr, data []byte) {
 	b := buftxn.bufs.Lookup(addr)
 	if b == nil {
 		b = buf.MkBuf(addr, data)

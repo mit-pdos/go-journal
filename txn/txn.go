@@ -3,6 +3,7 @@ package txn
 import (
 	"github.com/tchajed/goose/machine/disk"
 
+	"github.com/mit-pdos/goose-nfsd/addr"
 	"github.com/mit-pdos/goose-nfsd/buf"
 	"github.com/mit-pdos/goose-nfsd/fs"
 	"github.com/mit-pdos/goose-nfsd/util"
@@ -51,7 +52,7 @@ func (txn *Txn) GetTransId() TransId {
 }
 
 // Read a disk object into buf
-func (txn *Txn) Load(addr buf.Addr) *buf.Buf {
+func (txn *Txn) Load(addr addr.Addr) *buf.Buf {
 	blk := txn.log.Read(addr.Blkno)
 	b := buf.MkBufLoad(addr, blk)
 	return b

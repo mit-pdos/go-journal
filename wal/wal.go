@@ -5,8 +5,7 @@ import (
 	"github.com/tchajed/goose/machine/disk"
 	"github.com/tchajed/marshal"
 
-	"github.com/mit-pdos/goose-nfsd/buf"
-	"github.com/mit-pdos/goose-nfsd/fs"
+	"github.com/mit-pdos/goose-nfsd/common"
 	"github.com/mit-pdos/goose-nfsd/util"
 
 	"sync"
@@ -33,16 +32,16 @@ import (
 
 type LogPosition uint64
 
-const LOGHDR = buf.Bnum(0)
-const LOGHDR2 = buf.Bnum(1)
-const LOGSTART = buf.Bnum(2)
+const LOGHDR = common.Bnum(0)
+const LOGHDR2 = common.Bnum(1)
+const LOGSTART = common.Bnum(2)
 
 type BlockData struct {
-	bn  buf.Bnum
+	bn  common.Bnum
 	blk disk.Block
 }
 
-func MkBlockData(bn buf.Bnum, blk disk.Block) BlockData {
+func MkBlockData(bn common.Bnum, blk disk.Block) BlockData {
 	b := BlockData{bn: bn, blk: blk}
 	return b
 }
@@ -65,7 +64,7 @@ type Walog struct {
 	condShut *sync.Cond
 
 	// For speeding up reads:
-	memLogMap map[buf.Bnum]LogPosition
+	memLogMap map[common.Bnum]LogPosition
 }
 
 func MkLog(disk disk.Disk) *Walog {
@@ -81,7 +80,7 @@ func MkLog(disk disk.Disk) *Walog {
 		shutdown:    false,
 		nthread:     0,
 		condShut:    sync.NewCond(ml),
-		memLogMap:   make(map[buf.Bnum]LogPosition),
+		memLogMap:   make(map[common.Bnum]LogPosition),
 	}
 	util.DPrintf(1, "mkLog: size %d\n", l.LogSz())
 
@@ -98,7 +97,7 @@ func MkLog(disk disk.Disk) *Walog {
 // On-disk header in the first block of the log
 type hdr struct {
 	end   LogPosition
-	addrs []buf.Bnum
+	addrs []common.Bnum
 }
 
 func decodeHdr(blk disk.Block) *hdr {
@@ -108,7 +107,7 @@ func decodeHdr(blk disk.Block) *hdr {
 	}
 	dec := marshal.NewDec(blk)
 	h.end = LogPosition(dec.GetInt())
-	h.addrs = dec.GetInts(fs.HDRADDRS)
+	h.addrs = dec.GetInts(common.HDRADDRS)
 	return h
 }
 
@@ -232,11 +231,11 @@ func (l *Walog) doMemAppend(bufs []BlockData) LogPosition {
 //
 
 func (l *Walog) LogSz() uint64 {
-	return fs.HDRADDRS
+	return common.HDRADDRS
 }
 
 // Read blkno from memLog, if present
-func (l *Walog) readMemLog(blkno buf.Bnum) disk.Block {
+func (l *Walog) readMemLog(blkno common.Bnum) disk.Block {
 	var blk disk.Block
 
 	l.memLock.Lock()
@@ -251,7 +250,7 @@ func (l *Walog) readMemLog(blkno buf.Bnum) disk.Block {
 	return blk
 }
 
-func (l *Walog) Read(blkno buf.Bnum) disk.Block {
+func (l *Walog) Read(blkno common.Bnum) disk.Block {
 	var blk disk.Block
 
 	blkMem := l.readMemLog(blkno)

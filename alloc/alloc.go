@@ -3,13 +3,7 @@ package alloc
 import (
 	"sync"
 
-	"github.com/tchajed/goose/machine/disk"
-
 	"github.com/mit-pdos/goose-nfsd/util"
-)
-
-const (
-	NBITBLOCK uint64 = disk.BlockSize * 8
 )
 
 // Allocator uses a bit map to allocate and free numbers. Bit 0

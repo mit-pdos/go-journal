@@ -1,7 +1,7 @@
 package wal
 
 import (
-	"github.com/mit-pdos/goose-nfsd/buf"
+	"github.com/mit-pdos/goose-nfsd/common"
 	"github.com/mit-pdos/goose-nfsd/util"
 )
 
@@ -44,7 +44,7 @@ func (l *Walog) logAppend() bool {
 
 	l.logBlocks(memend, memstart, diskend, newbufs)
 
-	addrs := make([]buf.Bnum, l.LogSz())
+	addrs := make([]common.Bnum, l.LogSz())
 	for i := uint64(0); i < uint64(memend-memstart); i++ {
 		pos := memstart + LogPosition(i)
 		addrs[uint64(pos)%l.LogSz()] = memlog[i].bn
