@@ -137,7 +137,10 @@ func (suite *WalSuite) TestShutdownInProgress() {
 	l.Shutdown()
 }
 
+// Disabled for now because it uses low block numbers that interfere with the
+// log's on-disk storage.
 func (suite *WalSuite) TestRecoverFlushed() {
+	suite.T().Skip("test probably violates a wal precondition")
 	l := suite.l
 	l.MemAppend(contiguousTxn(1, 3, block1))
 	pos, _ := l.MemAppend(contiguousTxn(20, 10, block2))
