@@ -136,11 +136,12 @@ func (l *Walog) MemAppend(bufs []BlockData) (LogPosition, bool) {
 	}
 
 	var txn LogPosition = 0
+	var ok = true
 	l.memLock.Lock()
 	for {
 		if util.SumOverflows(uint64(l.memStart), uint64(len(bufs))) {
-			l.memLock.Unlock()
-			return 0, false
+			ok = false
+			break
 		}
 		if uint64(l.memStart)+uint64(len(l.memLog))-uint64(l.diskEnd)+uint64(len(bufs)) > LOGSZ {
 			util.DPrintf(5, "memAppend: log is full; try again")
@@ -154,7 +155,7 @@ func (l *Walog) MemAppend(bufs []BlockData) (LogPosition, bool) {
 		break
 	}
 	l.memLock.Unlock()
-	return txn, true
+	return txn, ok
 }
 
 // Flush flushes a transaction (and all preceding transactions)
