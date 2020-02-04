@@ -5,10 +5,16 @@ import (
 	"github.com/mit-pdos/goose-nfsd/util"
 )
 
-func (l *Walog) logBlocks(memend LogPosition, memstart LogPosition,
-	diskend LogPosition, bufs []BlockData) {
-	for pos := diskend; pos < memend; pos++ {
-		buf := bufs[pos-diskend]
+// logBlocks writes bufs to the end of the circular log
+//
+// Requires diskend to reflect the on-disk log, but otherwise operates without
+// holding any locks (with exclusive ownership of the on-disk log).
+//
+// The caller is responsible for updating both the disk and memory copy of
+// diskEnd.
+func (l *Walog) logBlocks(diskEnd LogPosition, bufs []BlockData) {
+	for i, buf := range bufs {
+		pos := diskEnd + LogPosition(i)
 		blk := buf.blk
 		blkno := buf.bn
 		util.DPrintf(5,
@@ -31,15 +37,15 @@ func (l *Walog) logAppend() bool {
 	memstart := l.memStart
 	memlog := l.memLog
 	memend := l.nextDiskEnd
-	diskend := l.diskEnd
-	newbufs := memlog[diskend-memstart : memend-memstart]
+	diskEnd := l.diskEnd
+	newbufs := memlog[diskEnd-memstart : memend-memstart]
 	if len(newbufs) == 0 {
 		return false
 	}
 
 	l.memLock.Unlock()
 
-	l.logBlocks(memend, memstart, diskend, newbufs)
+	l.logBlocks(diskEnd, newbufs)
 
 	addrs := make([]common.Bnum, HDRADDRS)
 	for i := uint64(0); i < uint64(memend-memstart); i++ {
