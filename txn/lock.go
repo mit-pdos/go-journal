@@ -4,18 +4,23 @@ import (
 	"sync"
 )
 
-type lockShard struct {
-	mu      *sync.Mutex
+type lockState struct {
+	tid     TransId
+	held    bool
 	cond    *sync.Cond
-	holders map[uint64]TransId
+	waiters uint64
+}
+
+type lockShard struct {
+	mu    *sync.Mutex
+	state map[uint64]*lockState
 }
 
 func mkLockShard() *lockShard {
 	mu := new(sync.Mutex)
 	a := &lockShard{
-		mu:      mu,
-		cond:    sync.NewCond(mu),
-		holders: make(map[uint64]TransId),
+		mu:    mu,
+		state: make(map[uint64]*lockState),
 	}
 	return a
 }
@@ -23,22 +28,46 @@ func mkLockShard() *lockShard {
 func (lmap *lockShard) acquire(addr uint64, id TransId) {
 	lmap.mu.Lock()
 	for {
-		_, held := lmap.holders[addr]
-		if !held {
-			lmap.holders[addr] = id
+		state := lmap.state[addr]
+		if state == nil {
+			// Allocate a new state
+			state = &lockState{
+				tid:     0,
+				held:    false,
+				cond:    sync.NewCond(lmap.mu),
+				waiters: 0,
+			}
+			lmap.state[addr] = state
+		}
+
+		if !state.held {
+			state.held = true
+			state.tid = id
 			break
 		}
 
-		lmap.cond.Wait()
+		state.waiters += 1
+		state.cond.Wait()
+
+		state = lmap.state[addr]
+		if state != nil {
+			// Should always be true, but we don't need to prove this
+			state.waiters -= 1
+		}
 	}
 	lmap.mu.Unlock()
 }
 
 func (lmap *lockShard) release(addr uint64) {
 	lmap.mu.Lock()
-	delete(lmap.holders, addr)
+	state := lmap.state[addr]
+	state.held = false
+	if state.waiters > 0 {
+		state.cond.Signal()
+	} else {
+		delete(lmap.state, addr)
+	}
 	lmap.mu.Unlock()
-	lmap.cond.Signal()
 }
 
 const NSHARD uint64 = 43
