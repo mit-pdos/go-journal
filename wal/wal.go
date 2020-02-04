@@ -91,10 +91,6 @@ func (l *Walog) doMemAppend(bufs []BlockData) LogPosition {
 //  For clients of WAL
 //
 
-func (l *Walog) LogSz() uint64 {
-	return common.HDRADDRS
-}
-
 // Read blkno from memLog, if present
 func (l *Walog) readMemLog(blkno common.Bnum) disk.Block {
 	var blk disk.Block

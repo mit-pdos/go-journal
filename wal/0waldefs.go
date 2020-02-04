@@ -141,3 +141,7 @@ func (l *Walog) readHdr2() *hdr2 {
 func posToDiskAddr(pos LogPosition) uint64 {
 	return LOGSTART + uint64(pos)%LOGSZ
 }
+
+func (l *Walog) LogSz() uint64 {
+	return common.HDRADDRS
+}
