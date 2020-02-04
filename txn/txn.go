@@ -78,16 +78,6 @@ func (txn *Txn) releaseTxn(addrs []buf.Addr, id TransId) {
 	}
 }
 
-// Last buf in bufs that has data for the same block as the first buf
-func lastBuf(bufs []*buf.Buf) uint64 {
-	var i = uint64(0)
-	blkno := bufs[i].Addr.Blkno
-	l := uint64(len(bufs))
-	for ; i < l && blkno == bufs[i].Addr.Blkno; i++ {
-	}
-	return i
-}
-
 // Installs the txn's bufs into their blocks and returns the blocks.
 // A buf may only partially update a disk block and several bufs may
 // apply to the same disk block. Assume caller holds commit lock.
