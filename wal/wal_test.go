@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"github.com/tchajed/goose/machine/disk"
 
+	"github.com/mit-pdos/goose-nfsd/common"
 	"github.com/mit-pdos/goose-nfsd/fake-bcache/bcache"
 )
 
@@ -51,15 +52,19 @@ var block0 = mkBlock(0)
 var block1 = mkBlock(1)
 var block2 = mkBlock(2)
 
+func dataBnum(x common.Bnum) common.Bnum {
+	return LOGDISKBLOCKS + x
+}
+
 func (suite *WalSuite) TestMemReadWrite() {
 	l := suite.l
 	l.MemAppend([]BlockData{
-		MkBlockData(2, block2),
-		MkBlockData(1, block1),
+		MkBlockData(dataBnum(2), block2),
+		MkBlockData(dataBnum(1), block1),
 	})
-	suite.Equal(block1, l.Read(1))
-	suite.Equal(block2, l.Read(2))
-	suite.Equal(block0, l.Read(3))
+	suite.Equal(block1, l.Read(dataBnum(1)))
+	suite.Equal(block2, l.Read(dataBnum(2)))
+	suite.Equal(block0, l.Read(dataBnum(3)))
 }
 
 func (suite *WalSuite) TestMultiTxnReadWrite() {
@@ -80,18 +85,18 @@ func (suite *WalSuite) TestMultiTxnReadWrite() {
 func (suite *WalSuite) TestFlush() {
 	l := suite.l
 	pos, _ := l.MemAppend([]BlockData{
-		MkBlockData(2, block1),
-		MkBlockData(1, block1),
+		MkBlockData(dataBnum(2), block1),
+		MkBlockData(dataBnum(1), block1),
 	})
 	l.Flush(pos)
 	l.MemAppend([]BlockData{
-		MkBlockData(3, block1),
-		MkBlockData(2, block2),
+		MkBlockData(dataBnum(3), block1),
+		MkBlockData(dataBnum(2), block2),
 	})
-	suite.Equal(block1, l.Read(1))
-	suite.Equal(block2, l.Read(2),
+	suite.Equal(block1, l.Read(dataBnum(1)))
+	suite.Equal(block2, l.Read(dataBnum(2)),
 		"memory should overwrite disk log")
-	suite.Equal(block1, l.Read(3))
+	suite.Equal(block1, l.Read(dataBnum(3)))
 }
 
 // contiguousTxn gives a transaction that writes b to addresses [start,
@@ -140,33 +145,32 @@ func (suite *WalSuite) TestShutdownInProgress() {
 // Disabled for now because it uses low block numbers that interfere with the
 // log's on-disk storage.
 func (suite *WalSuite) TestRecoverFlushed() {
-	suite.T().Skip("test probably violates a wal precondition")
 	l := suite.l
-	l.MemAppend(contiguousTxn(1, 3, block1))
-	pos, _ := l.MemAppend(contiguousTxn(20, 10, block2))
+	l.MemAppend(contiguousTxn(dataBnum(1), 3, block1))
+	pos, _ := l.MemAppend(contiguousTxn(dataBnum(20), 10, block2))
 	l.Flush(pos)
 
 	l = suite.restart()
-	suite.Equal(block0, l.Read(0))
-	suite.Equal(block1, l.Read(2))
-	suite.Equal(block2, l.Read(20))
+	suite.Equal(block0, l.Read(dataBnum(0)))
+	suite.Equal(block1, l.Read(dataBnum(2)))
+	suite.Equal(block2, l.Read(dataBnum(20)))
 }
 
 func (suite *WalSuite) TestRecoverPending() {
 	l := suite.l
-	l.MemAppend(contiguousTxn(1, 3, block1))
-	l.MemAppend(contiguousTxn(20, 10, block2))
+	l.MemAppend(contiguousTxn(dataBnum(1), 3, block1))
+	l.MemAppend(contiguousTxn(dataBnum(20), 10, block2))
 
 	l = suite.restart()
-	suite.Equal(block0, l.Read(0))
+	suite.Equal(block0, l.Read(dataBnum(0)))
 	// the transactions may or may not have committed; check for atomicity
-	suite.Equal(l.Read(1), l.Read(2),
+	suite.Equal(l.Read(1), l.Read(dataBnum(2)),
 		"first txn non-atomic")
-	suite.Equal(l.Read(1), l.Read(3),
+	suite.Equal(l.Read(1), l.Read(dataBnum(3)),
 		"first txn non-atomic")
 
-	suite.Equal(l.Read(20), l.Read(21),
+	suite.Equal(l.Read(20), l.Read(dataBnum(21)),
 		"second txn non-atomic")
-	suite.Equal(l.Read(20), l.Read(20+9),
+	suite.Equal(l.Read(20), l.Read(dataBnum(20+9)),
 		"second txn non-atomic")
 }
