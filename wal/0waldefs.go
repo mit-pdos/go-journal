@@ -20,7 +20,7 @@ import (
 	"github.com/tchajed/goose/machine/disk"
 	"github.com/tchajed/marshal"
 
-	"github.com/mit-pdos/goose-nfsd/buf"
+	"github.com/mit-pdos/goose-nfsd/common"
 	"github.com/mit-pdos/goose-nfsd/fake-bcache/bcache"
 
 	"sync"
@@ -36,17 +36,17 @@ const (
 type LogPosition uint64
 
 const (
-	LOGHDR   = buf.Bnum(0)
-	LOGHDR2  = buf.Bnum(1)
-	LOGSTART = buf.Bnum(2)
+	LOGHDR   = common.Bnum(0)
+	LOGHDR2  = common.Bnum(1)
+	LOGSTART = common.Bnum(2)
 )
 
 type BlockData struct {
-	bn  buf.Bnum
+	bn  common.Bnum
 	blk disk.Block
 }
 
-func MkBlockData(bn buf.Bnum, blk disk.Block) BlockData {
+func MkBlockData(bn common.Bnum, blk disk.Block) BlockData {
 	b := BlockData{bn: bn, blk: blk}
 	return b
 }
@@ -69,13 +69,13 @@ type Walog struct {
 	condShut *sync.Cond
 
 	// For speeding up reads:
-	memLogMap map[buf.Bnum]LogPosition
+	memLogMap map[common.Bnum]LogPosition
 }
 
 // On-disk header in the first block of the log
 type hdr struct {
 	end   LogPosition
-	addrs []buf.Bnum
+	addrs []common.Bnum
 }
 
 func decodeHdr(blk disk.Block) *hdr {

@@ -1,5 +1,9 @@
 package buf
 
+import (
+	"github.com/mit-pdos/goose-nfsd/addr"
+)
+
 //
 // A map from Addr's to bufs.
 //
@@ -19,11 +23,11 @@ func (bmap *BufMap) Insert(buf *Buf) {
 	bmap.addrs[buf.Addr.Flatid()] = buf
 }
 
-func (bmap *BufMap) Lookup(addr Addr) *Buf {
+func (bmap *BufMap) Lookup(addr addr.Addr) *Buf {
 	return bmap.addrs[addr.Flatid()]
 }
 
-func (bmap *BufMap) Del(addr Addr) {
+func (bmap *BufMap) Del(addr addr.Addr) {
 	delete(bmap.addrs, addr.Flatid())
 }
 

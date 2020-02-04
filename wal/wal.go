@@ -5,21 +5,21 @@ import (
 
 	"github.com/tchajed/goose/machine/disk"
 
-	"github.com/mit-pdos/goose-nfsd/buf"
+	"github.com/mit-pdos/goose-nfsd/common"
 	"github.com/mit-pdos/goose-nfsd/fake-bcache/bcache"
 	"github.com/mit-pdos/goose-nfsd/util"
 )
 
-func (l *Walog) Recover() {
+func (l *Walog) recover() {
 	h := l.readHdr()
 	h2 := l.readHdr2()
 	l.memStart = h2.start
 	l.diskEnd = h.end
-	util.DPrintf(1, "Recover %d %d\n", l.memStart, l.diskEnd)
+	util.DPrintf(1, "recover %d %d\n", l.memStart, l.diskEnd)
 	for pos := h2.start; pos < h.end; pos++ {
-		addr := h.addrs[uint64(pos)%LOGSZ]
+		addr := h.addrs[uint64(pos)%l.LogSz()]
 		util.DPrintf(1, "recover block %d\n", addr)
-		blk := l.d.Read(posToDiskAddr(pos))
+		blk := l.d.Read(uint64(LOGSTART) + (uint64(pos) % l.LogSz()))
 		b := MkBlockData(addr, blk)
 		l.memLog = append(l.memLog, b)
 	}
@@ -40,11 +40,11 @@ func MkLog(disk *bcache.Bcache) *Walog {
 		shutdown:    false,
 		nthread:     0,
 		condShut:    sync.NewCond(ml),
-		memLogMap:   make(map[buf.Bnum]LogPosition),
+		memLogMap:   make(map[common.Bnum]LogPosition),
 	}
 	util.DPrintf(1, "mkLog: size %d\n", LOGSZ)
 
-	l.Recover()
+	l.recover()
 
 	go func() { l.logger() }()
 	go func() { l.installer() }()
@@ -91,8 +91,12 @@ func (l *Walog) doMemAppend(bufs []BlockData) LogPosition {
 //  For clients of WAL
 //
 
+func (l *Walog) LogSz() uint64 {
+	return common.HDRADDRS
+}
+
 // Read blkno from memLog, if present
-func (l *Walog) readMemLog(blkno buf.Bnum) disk.Block {
+func (l *Walog) readMemLog(blkno common.Bnum) disk.Block {
 	var blk disk.Block
 
 	l.memLock.Lock()
@@ -107,7 +111,7 @@ func (l *Walog) readMemLog(blkno buf.Bnum) disk.Block {
 	return blk
 }
 
-func (l *Walog) Read(blkno buf.Bnum) disk.Block {
+func (l *Walog) Read(blkno common.Bnum) disk.Block {
 	var blk disk.Block
 
 	blkMem := l.readMemLog(blkno)
