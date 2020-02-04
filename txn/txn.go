@@ -134,8 +134,8 @@ func (txn *Txn) CommitWait(bufs []*buf.Buf, wait bool, abort bool, id TransId) b
 	return commit
 }
 
-func (txn *Txn) Flush(addrs []addr.Addr, id TransId) bool {
-	// NOTE: this is coarse-grained and unattached to the transaction ID
+// NOTE: this is coarse-grained and unattached to the transaction ID
+func (txn *Txn) Flush() bool {
 	txn.log.Flush(txn.pos)
 	return true
 }
