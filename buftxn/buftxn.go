@@ -42,7 +42,7 @@ func (buftxn *BufTxn) ReadBuf(addr addr.Addr) *buf.Buf {
 
 // Caller overwrites addr without reading it
 func (buftxn *BufTxn) OverWrite(addr addr.Addr, data []byte) {
-	b := buftxn.bufs.Lookup(addr)
+	var b = buftxn.bufs.Lookup(addr)
 	if b == nil {
 		b = buf.MkBuf(addr, data)
 		buftxn.bufs.Insert(b)
