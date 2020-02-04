@@ -23,9 +23,15 @@ func (l *Walog) logBlocks(diskEnd LogPosition, bufs []BlockData) {
 	}
 }
 
-// logAppend waits for disk log space and then appends to the log
+// logAppend appends to the log, if it can find transactions to append.
+//
+// It grabs the new writes in memory and not on disk through l.
+// nextDiskEnd; if there are any such writes, it commits them atomically.
 //
 // assumes caller holds memLock
+//
+// Returns true if it made progress (for liveness, not important for
+// correctness).
 func (l *Walog) logAppend() bool {
 	// Wait until there is sufficient space on disk for the entire
 	// in-memory log (i.e., the installer must catch up).
@@ -36,31 +42,36 @@ func (l *Walog) logAppend() bool {
 
 	memstart := l.memStart
 	memlog := l.memLog
-	memend := l.nextDiskEnd
+	newDiskEnd := l.nextDiskEnd
 	diskEnd := l.diskEnd
-	newbufs := memlog[diskEnd-memstart : memend-memstart]
+	newbufs := memlog[diskEnd-memstart : newDiskEnd-memstart]
 	if len(newbufs) == 0 {
 		return false
 	}
 
 	l.memLock.Unlock()
 
+	// 1. Update the blocks in the log.
 	l.logBlocks(diskEnd, newbufs)
 
+	// 2. Extend the addresses on disk with the newbufs addresses.
 	addrs := make([]common.Bnum, HDRADDRS)
-	for i := uint64(0); i < uint64(memend-memstart); i++ {
+	// note that this is the old on-disk addresses (through diskEnd-memstart)
+	// plus the new ones (through newDiskEnd-memstart)
+	for i, buf := range memlog[:newDiskEnd-memstart] {
 		pos := memstart + LogPosition(i)
-		addrs[uint64(pos)%LOGSZ] = memlog[i].bn
+		addrs[uint64(pos)%LOGSZ] = buf.bn
 	}
 	newh := &hdr{
-		end:   memend,
+		end:   newDiskEnd,
 		addrs: addrs,
 	}
+	// 3. Update the on-disk log to include the new BlockData.
 	l.writeHdr(newh)
 	l.d.Barrier()
 
 	l.memLock.Lock()
-	l.diskEnd = memend
+	l.diskEnd = newDiskEnd
 	l.condLogger.Broadcast()
 	l.condInstall.Broadcast()
 
