@@ -21,3 +21,12 @@ func Min(n uint64, m uint64) uint64 {
 		return m
 	}
 }
+
+// returns n+m>=2^64 (if it were computed at infinite precision)
+func SumOverflows(n uint64, m uint64) bool {
+	return n > (1<<64-1)-m
+}
+
+func SumOverflows32(n uint32, m uint32) bool {
+	return n > (1<<32-1)-m
+}
