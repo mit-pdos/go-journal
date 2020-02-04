@@ -107,6 +107,7 @@ func (txn *Txn) doCommit(bufs []*buf.Buf, abort bool) (wal.LogPosition, bool) {
 	util.DPrintf(3, "doCommit: %v bufs\n", len(blks))
 
 	n, ok := txn.log.MemAppend(blks)
+	txn.pos = n
 
 	txn.mu.Unlock()
 
@@ -124,8 +125,6 @@ func (txn *Txn) CommitWait(bufs []*buf.Buf, wait bool, abort bool, id TransId) b
 		} else {
 			if wait {
 				txn.log.Flush(n)
-			} else {
-				txn.pos = n
 			}
 		}
 	} else {
