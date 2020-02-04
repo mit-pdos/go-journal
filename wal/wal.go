@@ -124,8 +124,12 @@ func (l *Walog) Read(blkno common.Bnum) disk.Block {
 	return blk
 }
 
-// Append to in-memory log. Returns false, if bufs don't fit.
-// Otherwise, returns the txn for this append.
+// Append to in-memory log.
+//
+// On success returns the txn for this append.
+//
+// On failure guaranteed to be idempotent (failure can occur either due to bufs
+// exceeding the size of the log or in principle due to overflowing 2^64 writes)
 func (l *Walog) MemAppend(bufs []BlockData) (LogPosition, bool) {
 	if uint64(len(bufs)) > LOGSZ {
 		return 0, false
@@ -134,6 +138,10 @@ func (l *Walog) MemAppend(bufs []BlockData) (LogPosition, bool) {
 	var txn LogPosition = 0
 	l.memLock.Lock()
 	for {
+		if util.SumOverflows(uint64(l.memStart), uint64(len(bufs))) {
+			l.memLock.Unlock()
+			return 0, false
+		}
 		if uint64(l.memStart)+uint64(len(l.memLog))-uint64(l.diskEnd)+uint64(len(bufs)) > LOGSZ {
 			util.DPrintf(5, "memAppend: log is full; try again")
 			// commit everything, stable and unstable trans

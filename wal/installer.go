@@ -25,11 +25,6 @@ func (l *Walog) installBlocks(bufs []BlockData) {
 		blkno := bufs[i].bn
 		blk := bufs[i].blk
 		util.DPrintf(5, "installBlocks: write log block %d to %d\n", i, blkno)
-		// TODO(tchajed): don't these addresses need to be translated to the
-		//  data region?
-		//
-		// If not, this should impose a requirement that addresses are all
-		// past the log.
 		l.d.Write(uint64(blkno), blk)
 	}
 }
