@@ -20,10 +20,9 @@ func (l *Walog) cutMemLog(installEnd LogPosition) {
 }
 
 func (l *Walog) installBlocks(bufs []BlockData) {
-	n := uint64(len(bufs))
-	for i := uint64(0); i < n; i++ {
-		blkno := bufs[i].bn
-		blk := bufs[i].blk
+	for i, buf := range bufs {
+		blkno := buf.bn
+		blk := buf.blk
 		util.DPrintf(5, "installBlocks: write log block %d to %d\n", i, blkno)
 		l.d.Write(uint64(blkno), blk)
 	}
