@@ -62,10 +62,9 @@ func (txn *Txn) Load(addr addr.Addr) *buf.Buf {
 
 // Install bufs that contain data for the same block
 func (txn *Txn) installBlock(blk disk.Block, bufs []*buf.Buf) {
-	l := uint64(len(bufs))
-	util.DPrintf(1, "installBlock %v #bufs %d\n", bufs[0].Addr.Blkno, l)
-	for i := uint64(0); i < l; i++ {
-		bufs[i].Install(blk)
+	util.DPrintf(1, "installBlock %v #bufs %d\n", bufs[0].Addr.Blkno, len(bufs))
+	for _, buf := range bufs {
+		buf.Install(blk)
 	}
 }
 
