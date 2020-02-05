@@ -28,7 +28,8 @@ func mkLockShard() *lockShard {
 func (lmap *lockShard) acquire(addr uint64, id uint64) {
 	lmap.mu.Lock()
 	for {
-		state := lmap.state[addr]
+		var state *lockState
+		state = lmap.state[addr]
 		if state == nil {
 			// Allocate a new state
 			state = &lockState{
