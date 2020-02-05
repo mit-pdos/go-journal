@@ -68,9 +68,9 @@ func (buftxn *BufTxn) LogSzBytes() uint64 {
 }
 
 // Commit dirty bufs of this transaction
-func (buftxn *BufTxn) CommitWait(wait bool, abort bool) bool {
-	util.DPrintf(1, "Commit %d w %v a %v\n", buftxn.Id, wait, abort)
-	ok := buftxn.txn.CommitWait(buftxn.bufs.DirtyBufs(), wait, abort, buftxn.Id)
+func (buftxn *BufTxn) CommitWait(wait bool) bool {
+	util.DPrintf(1, "Commit %d w %v\n", buftxn.Id, wait)
+	ok := buftxn.txn.CommitWait(buftxn.bufs.DirtyBufs(), wait, buftxn.Id)
 	return ok
 }
 

@@ -1,8 +1,6 @@
 package txn
 
 import (
-	"github.com/tchajed/goose/machine/disk"
-
 	"github.com/mit-pdos/goose-nfsd/addr"
 	"github.com/mit-pdos/goose-nfsd/buf"
 	"github.com/mit-pdos/goose-nfsd/common"
@@ -60,14 +58,6 @@ func (txn *Txn) Load(addr addr.Addr) *buf.Buf {
 	return b
 }
 
-// Install bufs that contain data for the same block
-func (txn *Txn) installBlock(blk disk.Block, bufs []*buf.Buf) {
-	util.DPrintf(1, "installBlock %v #bufs %d\n", bufs[0].Addr.Blkno, len(bufs))
-	for _, buf := range bufs {
-		buf.Install(blk)
-	}
-}
-
 // Installs the txn's bufs into their blocks and returns the blocks.
 // A buf may only partially update a disk block and several bufs may
 // apply to the same disk block. Assume caller holds commit lock.
@@ -98,7 +88,7 @@ func (txn *Txn) installBufs(bufs []*buf.Buf) []wal.BlockData {
 
 // Acquires the commit log, installs the txn's buffers into their
 // blocks, and appends the blocks to the in-memory log.
-func (txn *Txn) doCommit(bufs []*buf.Buf, abort bool) (wal.LogPosition, bool) {
+func (txn *Txn) doCommit(bufs []*buf.Buf) (wal.LogPosition, bool) {
 	txn.mu.Lock()
 
 	blks := txn.installBufs(bufs)
@@ -114,10 +104,10 @@ func (txn *Txn) doCommit(bufs []*buf.Buf, abort bool) (wal.LogPosition, bool) {
 }
 
 // Commit dirty bufs of the transaction into the log, and perhaps wait.
-func (txn *Txn) CommitWait(bufs []*buf.Buf, wait bool, abort bool, id TransId) bool {
+func (txn *Txn) CommitWait(bufs []*buf.Buf, wait bool, id TransId) bool {
 	var commit = true
 	if len(bufs) > 0 {
-		n, ok := txn.doCommit(bufs, abort)
+		n, ok := txn.doCommit(bufs)
 		if !ok {
 			util.DPrintf(10, "memappend failed; log is too small\n")
 			commit = false

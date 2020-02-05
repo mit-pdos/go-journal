@@ -7,7 +7,7 @@ import (
 )
 
 // Allocator uses a bit map to allocate and free numbers. Bit 0
-// corresponds to number 1, bit 1 to 1, and so on.
+// corresponds to number 0, bit 1 to 1, and so on.
 type Alloc struct {
 	mu     *sync.Mutex
 	next   uint64 // first number to try
