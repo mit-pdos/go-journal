@@ -2,12 +2,14 @@ package lockmap
 
 import (
 	"sync"
+
+	"github.com/mit-pdos/goose-nfsd/txn"
 )
 
 type TransId uint64
 
 type lockState struct {
-	tid     TransId
+	tid     txn.TransId
 	held    bool
 	cond    *sync.Cond
 	waiters uint64
@@ -27,7 +29,7 @@ func mkLockShard() *lockShard {
 	return a
 }
 
-func (lmap *lockShard) acquire(addr uint64, id TransId) {
+func (lmap *lockShard) acquire(addr uint64, id txn.TransId) {
 	lmap.mu.Lock()
 	for {
 		state := lmap.state[addr]
@@ -74,27 +76,27 @@ func (lmap *lockShard) release(addr uint64) {
 
 const NSHARD uint64 = 43
 
-type lockMap struct {
+type LockMap struct {
 	shards []*lockShard
 }
 
-func mkLockMap() *lockMap {
+func MkLockMap() *LockMap {
 	shards := make([]*lockShard, NSHARD)
 	for i := uint64(0); i < NSHARD; i++ {
 		shards[i] = mkLockShard()
 	}
-	a := &lockMap{
+	a := &LockMap{
 		shards: shards,
 	}
 	return a
 }
 
-func (lmap *lockMap) acquire(flataddr uint64, id TransId) {
+func (lmap *LockMap) Acquire(flataddr uint64, id txn.TransId) {
 	shard := lmap.shards[flataddr%NSHARD]
 	shard.acquire(flataddr, id)
 }
 
-func (lmap *lockMap) release(flataddr uint64, id TransId) {
+func (lmap *LockMap) Release(flataddr uint64, id txn.TransId) {
 	shard := lmap.shards[flataddr%NSHARD]
 	shard.release(flataddr)
 }
