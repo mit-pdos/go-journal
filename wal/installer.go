@@ -6,12 +6,11 @@ import (
 
 func (l *Walog) cutMemLog(installEnd LogPosition) {
 	// delete from memLogMap, if most recent version of blkno
-	for i, blk := range l.memLog[:installEnd-l.memStart] {
-		pos := installEnd + LogPosition(i)
-		blkno := blk.bn
-		oldPos, ok := l.memLogMap[blkno]
-		if ok && oldPos == pos {
-			util.DPrintf(5, "memLogMap: del %d %d\n", blkno, oldPos)
+	for i := l.memStart; i < installEnd; i++ {
+		blkno := l.memLog[i-l.memStart].bn
+		pos, ok := l.memLogMap[blkno]
+		if ok && pos == i {
+			util.DPrintf(5, "memLogMap: del %d %d\n", blkno, pos)
 			delete(l.memLogMap, blkno)
 		}
 	}
@@ -20,10 +19,6 @@ func (l *Walog) cutMemLog(installEnd LogPosition) {
 	l.memStart = installEnd
 }
 
-// installBlocks installs the updates in bufs to the data region
-//
-// Does not hold the memLock, but expects exclusive ownership of the data
-// region.
 func (l *Walog) installBlocks(bufs []BlockData) {
 	for i, buf := range bufs {
 		blkno := buf.bn
@@ -36,12 +31,8 @@ func (l *Walog) installBlocks(bufs []BlockData) {
 // logInstall installs one on-disk transaction from the disk log to the data
 // region.
 //
-// Returns (blkCount, installEnd)
-//
-// blkCount is the number of blocks installed (only used for liveness)
-//
-// installEnd is the new last position installed to the data region (only used
-// for debugging)
+// Returns the number of blocks written from memory and the old diskEnd
+// TODO(tchajed): why is this called installEnd?
 //
 // Installer holds memLock
 // XXX absorb
