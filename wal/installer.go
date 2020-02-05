@@ -19,6 +19,10 @@ func (l *Walog) cutMemLog(installEnd LogPosition) {
 	l.memStart = installEnd
 }
 
+// installBlocks installs the updates in bufs to the data region
+//
+// Does not hold the memLock, but expects exclusive ownership of the data
+// region.
 func (l *Walog) installBlocks(bufs []BlockData) {
 	for i, buf := range bufs {
 		blkno := buf.bn
@@ -31,8 +35,12 @@ func (l *Walog) installBlocks(bufs []BlockData) {
 // logInstall installs one on-disk transaction from the disk log to the data
 // region.
 //
-// Returns the number of blocks written from memory and the old diskEnd
-// TODO(tchajed): why is this called installEnd?
+// Returns (blkCount, installEnd)
+//
+// blkCount is the number of blocks installed (only used for liveness)
+//
+// installEnd is the new last position installed to the data region (only used
+// for debugging)
 //
 // Installer holds memLock
 // XXX absorb

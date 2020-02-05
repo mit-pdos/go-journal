@@ -52,6 +52,11 @@ func MkLog(disk *bcache.Bcache) *Walog {
 	return l
 }
 
+// memWrite writes out bufs to the in-memory log
+//
+// Absorbs writes in in-memory transactions (avoiding those that might be in
+// the process of being logged or installed).
+//
 // Assumes caller holds memLock
 func (l *Walog) memWrite(bufs []BlockData) {
 	s := LogPosition(len(l.memLog))
@@ -63,7 +68,11 @@ func (l *Walog) memWrite(bufs []BlockData) {
 		if ok && oldpos >= l.nextDiskEnd {
 			util.DPrintf(5, "memWrite: absorb %d pos %d old %d\n",
 				buf.bn, pos, oldpos)
+			// the ownership of this part of the memLog is complicated; maybe the
+			// logger and installer don't ever take ownership of it, which is why
+			// it's safe to write here?
 			l.memLog[oldpos-l.memStart] = buf
+			// note that pos does not need to be incremented
 		} else {
 			if ok {
 				util.DPrintf(5, "memLogMap: replace %d pos %d old %d\n",
