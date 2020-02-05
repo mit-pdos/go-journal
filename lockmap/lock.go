@@ -4,6 +4,8 @@ import (
 	"sync"
 )
 
+type TransId uint64
+
 type lockState struct {
 	tid     TransId
 	held    bool
