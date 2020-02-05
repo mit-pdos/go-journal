@@ -19,7 +19,7 @@ import (
 // upper layers are responsible for locking and lock ordering.
 //
 
-type TransId uint64
+type TransId = uint64
 
 type Txn struct {
 	mu     *sync.Mutex
