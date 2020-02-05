@@ -104,7 +104,7 @@ func (suite *WalSuite) TestFlush() {
 func contiguousTxn(start uint64, numWrites int, b disk.Block) []BlockData {
 	var txn []BlockData
 	for i := 0; i < numWrites; i++ {
-		a := start + uint64(i)
+		a := dataBnum(start) + uint64(i)
 		txn = append(txn, MkBlockData(a, b))
 	}
 	return txn
@@ -116,10 +116,38 @@ func (suite *WalSuite) TestTxnOverflowingMemLog() {
 	suite.checkMemAppend(contiguousTxn(1, int(LOGSZ-1), block1))
 	suite.checkMemAppend(contiguousTxn(LOGSZ+10, 2, block2))
 	// when this finishes, the first transaction should be flushed
-	suite.Equal(block1, l.Read(1),
+	suite.Equal(block1, l.Read(dataBnum(1)),
 		"first transaction should be on disk")
-	suite.Equal(block2, l.Read(LOGSZ+10),
+	suite.Equal(block2, l.Read(dataBnum(LOGSZ+10)),
 		"second transaction should at least be in memory")
+}
+
+func (suite *WalSuite) TestFillingLog() {
+	l := suite.l
+	suite.checkMemAppend(contiguousTxn(0, int(LOGSZ/2+1), block1))
+	suite.checkMemAppend(contiguousTxn(LOGSZ, int(LOGSZ/2+1), block2))
+	suite.checkMemAppend(contiguousTxn(LOGSZ*2, int(LOGSZ/2+1), block1))
+	suite.checkMemAppend(contiguousTxn(LOGSZ*3, int(LOGSZ/2+1), block2))
+	suite.checkMemAppend(contiguousTxn(LOGSZ*4, int(LOGSZ/2+1), block1))
+	suite.Equal(block1, l.Read(dataBnum(0)))
+	suite.Equal(block2, l.Read(dataBnum(LOGSZ)))
+	suite.Equal(block1, l.Read(dataBnum(LOGSZ*2)))
+	suite.Equal(block2, l.Read(dataBnum(LOGSZ*3)))
+	suite.Equal(block1, l.Read(dataBnum(LOGSZ*4)))
+}
+
+func (suite *WalSuite) TestAbsorption() {
+	l := suite.l
+	suite.checkMemAppend(contiguousTxn(0, 11, block1))
+	suite.checkMemAppend(contiguousTxn(0, 10, block2))
+	suite.Equal(block2, l.Read(dataBnum(0)))
+	suite.Equal(block2, l.Read(dataBnum(1)))
+	suite.checkMemAppend(contiguousTxn(2, 8, block0))
+	suite.Equal(block2, l.Read(dataBnum(0)))
+	suite.Equal(block2, l.Read(dataBnum(1)))
+	suite.Equal(block0, l.Read(dataBnum(2)),
+		"latest write should absorb old one")
+	suite.Equal(block1, l.Read(dataBnum(10)))
 }
 
 func (suite *WalSuite) TestShutdownQuiescent() {
@@ -146,8 +174,8 @@ func (suite *WalSuite) TestShutdownInProgress() {
 // log's on-disk storage.
 func (suite *WalSuite) TestRecoverFlushed() {
 	l := suite.l
-	l.MemAppend(contiguousTxn(dataBnum(1), 3, block1))
-	pos, _ := l.MemAppend(contiguousTxn(dataBnum(20), 10, block2))
+	l.MemAppend(contiguousTxn(1, 3, block1))
+	pos, _ := l.MemAppend(contiguousTxn(20, 10, block2))
 	l.Flush(pos)
 
 	l = suite.restart()
@@ -158,8 +186,8 @@ func (suite *WalSuite) TestRecoverFlushed() {
 
 func (suite *WalSuite) TestRecoverPending() {
 	l := suite.l
-	l.MemAppend(contiguousTxn(dataBnum(1), 3, block1))
-	l.MemAppend(contiguousTxn(dataBnum(20), 10, block2))
+	l.MemAppend(contiguousTxn(1, 3, block1))
+	l.MemAppend(contiguousTxn(20, 10, block2))
 
 	l = suite.restart()
 	suite.Equal(block0, l.Read(dataBnum(0)))
