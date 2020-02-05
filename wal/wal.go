@@ -52,45 +52,6 @@ func MkLog(disk *bcache.Bcache) *Walog {
 	return l
 }
 
-// Assumes caller holds memLock
-func (l *Walog) memWrite(bufs []BlockData) {
-	s := LogPosition(len(l.memLog))
-	var i uint64 = 0
-	for _, buf := range bufs {
-		// remember most recent position for Blkno
-		pos := l.memStart + s + LogPosition(i)
-		oldpos, ok := l.memLogMap[buf.bn]
-		if ok && oldpos >= l.nextDiskEnd {
-			util.DPrintf(5, "memWrite: absorb %d pos %d old %d\n",
-				buf.bn, pos, oldpos)
-			l.memLog[oldpos-l.memStart] = buf
-		} else {
-			if ok {
-				util.DPrintf(5, "memLogMap: replace %d pos %d old %d\n",
-					buf.bn, pos, oldpos)
-			} else {
-				util.DPrintf(5, "memLogMap: add %d pos %d\n",
-					buf.bn, pos)
-			}
-			l.memLog = append(l.memLog, buf)
-			l.memLogMap[buf.bn] = pos
-			i += 1
-		}
-	}
-	// l.condLogger.Broadcast()
-}
-
-// Assumes caller holds memLock
-func (l *Walog) doMemAppend(bufs []BlockData) LogPosition {
-	l.memWrite(bufs)
-	txn := l.memStart + LogPosition(len(l.memLog))
-	return txn
-}
-
-//
-//  For clients of WAL
-//
-
 // Read blkno from memLog, if present
 func (l *Walog) readMemLog(blkno common.Bnum) disk.Block {
 	var blk disk.Block
@@ -100,6 +61,7 @@ func (l *Walog) readMemLog(blkno common.Bnum) disk.Block {
 	if ok {
 		util.DPrintf(5, "read memLogMap: read %d pos %d\n", blkno, pos)
 		buf := l.memLog[pos-l.memStart]
+		// copy out the buffer so memLog can retain a copy of the data
 		blk = make([]byte, disk.BlockSize)
 		copy(blk, buf.blk)
 	}
@@ -118,6 +80,51 @@ func (l *Walog) Read(blkno common.Bnum) disk.Block {
 	}
 
 	return blk
+}
+
+// memWrite writes out bufs to the in-memory log
+//
+// Absorbs writes in in-memory transactions (avoiding those that might be in
+// the process of being logged or installed).
+//
+// Assumes caller holds memLock
+func (l *Walog) memWrite(bufs []BlockData) {
+	// the next position (to keep track of absorption)
+	var pos = LogPosition(len(l.memLog))
+	for _, buf := range bufs {
+		oldpos, ok := l.memLogMap[buf.bn]
+		if ok && oldpos >= l.nextDiskEnd {
+			util.DPrintf(5, "memWrite: absorb %d pos %d old %d\n",
+				buf.bn, pos, oldpos)
+			// the ownership of this part of the memLog is complicated; maybe the
+			// logger and installer don't ever take ownership of it, which is why
+			// it's safe to write here?
+			l.memLog[oldpos-l.memStart] = buf
+			// note that pos does not need to be incremented
+		} else {
+			if ok {
+				util.DPrintf(5, "memLogMap: replace %d pos %d old %d\n",
+					buf.bn, pos, oldpos)
+			} else {
+				util.DPrintf(5, "memLogMap: add %d pos %d\n",
+					buf.bn, pos)
+			}
+			l.memLog = append(l.memLog, buf)
+			l.memLogMap[buf.bn] = pos
+			pos += 1
+		}
+	}
+	// l.condLogger.Broadcast()
+}
+
+// Assumes caller holds memLock
+//
+// Appends to the in-memory log and returns the new transaction's pos in the
+// log.
+func (l *Walog) doMemAppend(bufs []BlockData) LogPosition {
+	l.memWrite(bufs)
+	txn := l.memStart + LogPosition(len(l.memLog))
+	return txn
 }
 
 // Append to in-memory log.
@@ -139,7 +146,9 @@ func (l *Walog) MemAppend(bufs []BlockData) (LogPosition, bool) {
 			ok = false
 			break
 		}
-		if uint64(l.memStart)+uint64(len(l.memLog))-uint64(l.diskEnd)+uint64(len(bufs)) > LOGSZ {
+		memEnd := LogPosition(uint64(l.memStart) + uint64(len(l.memLog)))
+		memSize := uint64(memEnd) - uint64(l.diskEnd)
+		if memSize+uint64(len(bufs)) > LOGSZ {
 			util.DPrintf(5, "memAppend: log is full; try again")
 			// commit everything, stable and unstable trans
 			l.nextDiskEnd = l.memStart + LogPosition(len(l.memLog))
