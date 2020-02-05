@@ -1,11 +1,10 @@
 GOPATH		:= $(shell go env GOPATH)
-GOOSE_DIRS	:= buf util common addr wal alloc bcache fs buftxn cache fh fstxn txn
+GOOSE_DIRS	:= buf util common addr wal alloc bcache fs buftxn cache fh fstxn txn inode
 
 # Things that don't goose yet:
 #   .
 #   dcache
 #   dir
-#   inode
 #   nfstypes: need to ignore nfs_xdr.go
 
 COQ_PKGDIR := Goose/github_com/mit_pdos/goose_nfsd
