@@ -59,11 +59,9 @@ func MkLog(disk *bcache.Bcache) *Walog {
 //
 // Assumes caller holds memLock
 func (l *Walog) memWrite(bufs []BlockData) {
-	s := LogPosition(len(l.memLog))
-	var i uint64 = 0
+	var pos = l.memStart + LogPosition(len(l.memLog))
 	for _, buf := range bufs {
 		// remember most recent position for Blkno
-		pos := l.memStart + s + LogPosition(i)
 		oldpos, ok := l.memLogMap[buf.bn]
 		if ok && oldpos >= l.nextDiskEnd {
 			util.DPrintf(5, "memWrite: absorb %d pos %d old %d\n",
@@ -83,7 +81,7 @@ func (l *Walog) memWrite(bufs []BlockData) {
 			}
 			l.memLog = append(l.memLog, buf)
 			l.memLogMap[buf.bn] = pos
-			i += 1
+			pos += 1
 		}
 	}
 	// l.condLogger.Broadcast()
@@ -148,7 +146,9 @@ func (l *Walog) MemAppend(bufs []BlockData) (LogPosition, bool) {
 			ok = false
 			break
 		}
-		if uint64(l.memStart)+uint64(len(l.memLog))-uint64(l.diskEnd)+uint64(len(bufs)) > LOGSZ {
+		memEnd := LogPosition(uint64(l.memStart) + uint64(len(l.memLog)))
+		memSize := uint64(memEnd) - uint64(l.diskEnd)
+		if memSize+uint64(len(bufs)) > LOGSZ {
 			util.DPrintf(5, "memAppend: log is full; try again")
 			// commit everything, stable and unstable trans
 			l.nextDiskEnd = l.memStart + LogPosition(len(l.memLog))

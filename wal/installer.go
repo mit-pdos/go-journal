@@ -6,11 +6,12 @@ import (
 
 func (l *Walog) cutMemLog(installEnd LogPosition) {
 	// delete from memLogMap, if most recent version of blkno
-	for i := l.memStart; i < installEnd; i++ {
-		blkno := l.memLog[i-l.memStart].bn
-		pos, ok := l.memLogMap[blkno]
-		if ok && pos == i {
-			util.DPrintf(5, "memLogMap: del %d %d\n", blkno, pos)
+	for i, blk := range l.memLog[:installEnd-l.memStart] {
+		pos := l.memStart + LogPosition(i)
+		blkno := blk.bn
+		oldPos, ok := l.memLogMap[blkno]
+		if ok && oldPos == pos {
+			util.DPrintf(5, "memLogMap: del %d %d\n", blkno, oldPos)
 			delete(l.memLogMap, blkno)
 		}
 	}
