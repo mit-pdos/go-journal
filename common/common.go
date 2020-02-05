@@ -16,7 +16,7 @@ const (
 	LOGSIZE  = HDRADDRS + 2 // 2 for log header
 )
 
-type Inum uint64
+type Inum = uint64
 type Bnum = uint64
 
 const (
