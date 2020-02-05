@@ -26,7 +26,7 @@ func (l *Walog) recover() {
 	l.nextDiskEnd = l.memStart + LogPosition(len(l.memLog))
 }
 
-func MkLog(disk *bcache.Bcache) *Walog {
+func mkLog(disk *bcache.Bcache) *Walog {
 	ml := new(sync.Mutex)
 	l := &Walog{
 		d:           disk,
@@ -43,12 +43,14 @@ func MkLog(disk *bcache.Bcache) *Walog {
 		memLogMap:   make(map[common.Bnum]LogPosition),
 	}
 	util.DPrintf(1, "mkLog: size %d\n", LOGSZ)
-
 	l.recover()
+	return l
+}
 
+func MkLog(disk *bcache.Bcache) *Walog {
+	l := mkLog(disk)
 	go func() { l.logger() }()
 	go func() { l.installer() }()
-
 	return l
 }
 
