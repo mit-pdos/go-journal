@@ -24,13 +24,39 @@ func (l logWrapper) Read(bn common.Bnum) disk.Block {
 	return l.Walog.Read(dataBnum(bn))
 }
 
+func (l logWrapper) MemAppend(txn []BlockData) LogPosition {
+	pos, ok := l.Walog.MemAppend(txn)
+	l.assert.Equalf(true, ok,
+		"mem append of %v blocks failed", len(txn))
+	return pos
+}
+
 func (l logWrapper) log() {
+	l.Walog.memLock.Lock()
+	defer l.Walog.memLock.Unlock()
 	l.assert.True(l.logAppend(), "expected to make progress")
 }
 
+func (l logWrapper) logOnce() {
+	progress := false
+	for !progress {
+		l.Walog.memLock.Lock()
+		progress = l.logAppend()
+		l.Walog.memLock.Unlock()
+	}
+}
+
 func (l logWrapper) install() {
+	l.Walog.memLock.Lock()
+	defer l.Walog.memLock.Unlock()
 	numBlocks, _ := l.logInstall()
-	l.assert.Greater(numBlocks, 0, "expected to install blocks")
+	l.assert.Greater(numBlocks, uint64(0), "expected to install blocks")
+}
+
+func (l *logWrapper) Restart() {
+	l.Walog.Shutdown()
+	disk := l.Walog.d
+	l.Walog = mkLog(disk)
 }
 
 type WalSuite struct {
@@ -42,7 +68,7 @@ type WalSuite struct {
 func (suite *WalSuite) SetupTest() {
 	suite.d = disk.NewMemDisk(10000)
 	cache := bcache.MkBcache(suite.d)
-	suite.l = logWrapper{assert: suite.Assert(), Walog: MkLog(cache)}
+	suite.l = logWrapper{assert: suite.Assert(), Walog: mkLog(cache)}
 }
 
 func (suite *WalSuite) restart() logWrapper {
@@ -54,13 +80,6 @@ func (suite *WalSuite) restart() logWrapper {
 
 func TestWal(t *testing.T) {
 	suite.Run(t, new(WalSuite))
-}
-
-func (suite *WalSuite) checkMemAppend(txn []BlockData) LogPosition {
-	pos, ok := suite.l.MemAppend(txn)
-	suite.Equalf(true, ok,
-		"mem append of %v blocks failed", len(txn))
-	return pos
 }
 
 func mkBlock(b byte) disk.Block {
@@ -103,7 +122,8 @@ func (suite *WalSuite) TestMultiTxnReadWrite() {
 
 func (suite *WalSuite) TestFlush() {
 	l := suite.l
-	pos, _ := l.MemAppend([]BlockData{
+	l.startBackgroundThreads()
+	pos := l.MemAppend([]BlockData{
 		MkBlockData(dataBnum(2), block1),
 		MkBlockData(dataBnum(1), block1),
 	})
@@ -131,9 +151,10 @@ func contiguousTxn(start uint64, numWrites int, b disk.Block) []BlockData {
 
 func (suite *WalSuite) TestTxnOverflowingMemLog() {
 	l := suite.l
+	l.startBackgroundThreads()
 	// leaves one address in the memLog
-	suite.checkMemAppend(contiguousTxn(1, int(LOGSZ-1), block1))
-	suite.checkMemAppend(contiguousTxn(LOGSZ+10, 2, block2))
+	l.MemAppend(contiguousTxn(1, int(LOGSZ-1), block1))
+	l.MemAppend(contiguousTxn(LOGSZ+10, 2, block2))
 	// when this finishes, the first transaction should be flushed
 	suite.Equal(block1, l.Read(1),
 		"first transaction should be on disk")
@@ -143,11 +164,12 @@ func (suite *WalSuite) TestTxnOverflowingMemLog() {
 
 func (suite *WalSuite) TestFillingLog() {
 	l := suite.l
-	suite.checkMemAppend(contiguousTxn(0, int(LOGSZ/2+1), block1))
-	suite.checkMemAppend(contiguousTxn(LOGSZ, int(LOGSZ/2+1), block2))
-	suite.checkMemAppend(contiguousTxn(LOGSZ*2, int(LOGSZ/2+1), block1))
-	suite.checkMemAppend(contiguousTxn(LOGSZ*3, int(LOGSZ/2+1), block2))
-	suite.checkMemAppend(contiguousTxn(LOGSZ*4, int(LOGSZ/2+1), block1))
+	l.startBackgroundThreads()
+	l.MemAppend(contiguousTxn(0, int(LOGSZ/2+1), block1))
+	l.MemAppend(contiguousTxn(LOGSZ, int(LOGSZ/2+1), block2))
+	l.MemAppend(contiguousTxn(LOGSZ*2, int(LOGSZ/2+1), block1))
+	l.MemAppend(contiguousTxn(LOGSZ*3, int(LOGSZ/2+1), block2))
+	l.MemAppend(contiguousTxn(LOGSZ*4, int(LOGSZ/2+1), block1))
 	suite.Equal(block1, l.Read(0))
 	suite.Equal(block2, l.Read(LOGSZ*1))
 	suite.Equal(block1, l.Read(LOGSZ*2))
@@ -157,11 +179,12 @@ func (suite *WalSuite) TestFillingLog() {
 
 func (suite *WalSuite) TestAbsorption() {
 	l := suite.l
-	suite.checkMemAppend(contiguousTxn(0, 11, block1))
-	suite.checkMemAppend(contiguousTxn(0, 10, block2))
+	l.startBackgroundThreads()
+	l.MemAppend(contiguousTxn(0, 11, block1))
+	l.MemAppend(contiguousTxn(0, 10, block2))
 	suite.Equal(block2, l.Read(0))
 	suite.Equal(block2, l.Read(1))
-	suite.checkMemAppend(contiguousTxn(2, 8, block0))
+	l.MemAppend(contiguousTxn(2, 8, block0))
 	suite.Equal(block2, l.Read(0))
 	suite.Equal(block2, l.Read(1))
 	suite.Equal(block0, l.Read(2),
@@ -176,23 +199,28 @@ func (suite *WalSuite) TestShutdownQuiescent() {
 
 func (suite *WalSuite) TestShutdownFlushed() {
 	l := suite.l
-	pos := suite.checkMemAppend(contiguousTxn(1, 3, block1))
+	l.startBackgroundThreads()
+	pos := l.MemAppend(contiguousTxn(1, 3, block1))
 	l.Flush(pos)
-	l.Shutdown()
+	l.Restart()
+	suite.Equal(block0, l.Read(0))
+	suite.Equal(block1, l.Read(1), "flushed transaction should be in log")
 }
 
 func (suite *WalSuite) TestShutdownInProgress() {
 	l := suite.l
+	l.startBackgroundThreads()
 	l.MemAppend(contiguousTxn(1, 3, block1))
 	l.MemAppend(contiguousTxn(1, 10, block2))
-	suite.checkMemAppend(contiguousTxn(1, int(LOGSZ-3), block1))
+	l.MemAppend(contiguousTxn(1, int(LOGSZ-3), block1))
 	l.Shutdown()
 }
 
 func (suite *WalSuite) TestRecoverFlushed() {
 	l := suite.l
+	l.startBackgroundThreads()
 	l.MemAppend(contiguousTxn(1, 3, block1))
-	pos, _ := l.MemAppend(contiguousTxn(20, 10, block2))
+	pos := l.MemAppend(contiguousTxn(20, 10, block2))
 	l.Flush(pos)
 
 	l = suite.restart()
@@ -203,6 +231,7 @@ func (suite *WalSuite) TestRecoverFlushed() {
 
 func (suite *WalSuite) TestRecoverPending() {
 	l := suite.l
+	l.startBackgroundThreads()
 	l.MemAppend(contiguousTxn(1, 3, block1))
 	l.MemAppend(contiguousTxn(20, 10, block2))
 
@@ -218,4 +247,25 @@ func (suite *WalSuite) TestRecoverPending() {
 		"second txn non-atomic")
 	suite.Equal(l.Read(20), l.Read(20+9),
 		"second txn non-atomic")
+}
+
+func (suite *WalSuite) TestRecoverUninstalled() {
+	l := suite.l
+	// we do not start the logger and installer, instead manually controlling
+	// logging
+	pos := l.MemAppend(contiguousTxn(1, int(LOGSZ), block1))
+	go func() {
+		l.Flush(pos)
+	}()
+	l.logOnce()
+	l.install()
+	pos = l.MemAppend(contiguousTxn(1+LOGSZ, 10, block2))
+	go func() {
+		l.Flush(pos)
+	}()
+	l.logOnce()
+
+	l.Restart()
+	suite.Equal(block1, l.Read(1), "installed txn")
+	suite.Equal(block2, l.Read(1+LOGSZ), "logged but uninstalled txn")
 }
