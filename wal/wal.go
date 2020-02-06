@@ -22,6 +22,7 @@ func (l *Walog) recover() {
 		blk := l.d.Read(uint64(LOGSTART) + (uint64(pos) % l.LogSz()))
 		b := MkBlockData(addr, blk)
 		l.memLog = append(l.memLog, b)
+		l.memLogMap[b.bn] = pos
 	}
 	l.nextDiskEnd = l.memStart + LogPosition(len(l.memLog))
 }
