@@ -25,8 +25,8 @@ func (l *Walog) logBlocks(diskEnd LogPosition, bufs []BlockData) {
 
 // logAppend appends to the log, if it can find transactions to append.
 //
-// It grabs the new writes in memory and not on disk through l.
-// nextDiskEnd; if there are any such writes, it commits them atomically.
+// It grabs the new writes in memory and not on disk through l.nextDiskEnd; if
+// there are any such writes, it commits them atomically.
 //
 // assumes caller holds memLock
 //

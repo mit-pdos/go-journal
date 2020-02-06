@@ -47,10 +47,14 @@ func mkLog(disk *bcache.Bcache) *Walog {
 	return l
 }
 
-func MkLog(disk *bcache.Bcache) *Walog {
-	l := mkLog(disk)
+func (l *Walog) startBackgroundThreads() {
 	go func() { l.logger() }()
 	go func() { l.installer() }()
+}
+
+func MkLog(disk *bcache.Bcache) *Walog {
+	l := mkLog(disk)
+	l.startBackgroundThreads()
 	return l
 }
 
