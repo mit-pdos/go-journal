@@ -17,10 +17,11 @@ type lockShard struct {
 }
 
 func mkLockShard() *lockShard {
+	state := make(map[uint64]*lockState)
 	mu := new(sync.Mutex)
 	a := &lockShard{
 		mu:    mu,
-		state: make(map[uint64]*lockState),
+		state: state,
 	}
 	return a
 }
