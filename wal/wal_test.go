@@ -141,7 +141,6 @@ func (suite *WalSuite) TestFlush() {
 
 func (suite *WalSuite) TestFlushOld() {
 	l := suite.l
-	l.startBackgroundThreads()
 	txn1 := l.MemAppend([]BlockData{
 		MkBlockData(dataBnum(1), block1),
 	})
@@ -149,14 +148,17 @@ func (suite *WalSuite) TestFlushOld() {
 		MkBlockData(dataBnum(1), block2),
 		MkBlockData(dataBnum(2), block2),
 	})
-	l.Flush(txn1)
+	go func() {
+		l.Flush(txn1)
+	}()
+	l.logOnce()
 	l.Restart()
 	b1 := l.Read(1)
 	b2 := l.Read(2)
 	if reflect.DeepEqual(b1, block1) {
 		suite.Equal(b2, block0, "txn1 should be atomic")
 	} else {
-		suite.Equal(b1, block2, "txn2 should be written if not txn1")
+		suite.Equal(b1, block2, "at least txn1 should be flushed")
 		suite.Equal(b2, block2, "txn2 should be atomic")
 	}
 }
