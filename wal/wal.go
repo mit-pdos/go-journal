@@ -180,7 +180,7 @@ func (l *Walog) Flush(txn LogPosition) {
 	l.condLogger.Broadcast()
 	if txn > l.nextDiskEnd {
 		// a concurrent transaction may already committed beyond txn
-		l.nextDiskEnd = txn
+		l.nextDiskEnd = l.memStart + LogPosition(len(l.memLog))
 	}
 	for {
 		if txn <= l.diskEnd {
