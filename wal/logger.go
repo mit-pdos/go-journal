@@ -2,6 +2,7 @@ package wal
 
 import (
 	"github.com/mit-pdos/goose-nfsd/common"
+	"github.com/mit-pdos/goose-nfsd/fake-bcache/bcache"
 	"github.com/mit-pdos/goose-nfsd/util"
 )
 
@@ -12,14 +13,15 @@ import (
 //
 // The caller is responsible for updating both the disk and memory copy of
 // diskEnd.
-func (l *Walog) logBlocks(diskEnd LogPosition, bufs []BlockData) {
+func logBlocks(d *bcache.Bcache, diskEnd LogPosition,
+	bufs []BlockData) {
 	for i, buf := range bufs {
 		pos := diskEnd + LogPosition(i)
 		blk := buf.blk
 		blkno := buf.bn
 		util.DPrintf(5,
 			"logBlocks: %d to log block %d\n", blkno, pos)
-		l.d.Write(posToDiskAddr(pos), blk)
+		d.Write(posToDiskAddr(pos), blk)
 	}
 }
 
@@ -52,7 +54,7 @@ func (l *Walog) logAppend() bool {
 	l.memLock.Unlock()
 
 	// 1. Update the blocks in the log.
-	l.logBlocks(diskEnd, newbufs)
+	logBlocks(l.d, diskEnd, newbufs)
 
 	// 2. Extend the addresses on disk with the newbufs addresses.
 	addrs := make([]common.Bnum, HDRADDRS)
