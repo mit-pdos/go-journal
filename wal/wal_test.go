@@ -1,6 +1,7 @@
 package wal
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -136,6 +137,28 @@ func (suite *WalSuite) TestFlush() {
 	suite.Equal(block2, l.Read(2),
 		"memory should overwrite disk log")
 	suite.Equal(block1, l.Read(3))
+}
+
+func (suite *WalSuite) TestFlushOld() {
+	l := suite.l
+	l.startBackgroundThreads()
+	txn1 := l.MemAppend([]BlockData{
+		MkBlockData(dataBnum(1), block1),
+	})
+	l.MemAppend([]BlockData{
+		MkBlockData(dataBnum(1), block2),
+		MkBlockData(dataBnum(2), block2),
+	})
+	l.Flush(txn1)
+	l.Restart()
+	b1 := l.Read(1)
+	b2 := l.Read(2)
+	if reflect.DeepEqual(b1, block1) {
+		suite.Equal(b2, block0, "txn1 should be atomic")
+	} else {
+		suite.Equal(b1, block2, "txn2 should be written if not txn1")
+		suite.Equal(b2, block2, "txn2 should be atomic")
+	}
 }
 
 // contiguousTxn gives a transaction that writes b to addresses [start,
