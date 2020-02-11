@@ -6,7 +6,6 @@ import (
 
 	"github.com/mit-pdos/goose-nfsd/addr"
 	"github.com/mit-pdos/goose-nfsd/common"
-	"github.com/mit-pdos/goose-nfsd/fake-bcache/bcache"
 	"github.com/mit-pdos/goose-nfsd/util"
 )
 
@@ -97,7 +96,7 @@ func (buf *Buf) SetDirty() {
 	buf.dirty = true
 }
 
-func (buf *Buf) WriteDirect(d *bcache.Bcache) {
+func (buf *Buf) WriteDirect(d disk.Disk) {
 	buf.SetDirty()
 	if buf.Addr.Sz == disk.BlockSize {
 		d.Write(uint64(buf.Addr.Blkno), buf.Blk)

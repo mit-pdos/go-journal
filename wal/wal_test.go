@@ -68,8 +68,8 @@ type WalSuite struct {
 
 func (suite *WalSuite) SetupTest() {
 	suite.d = disk.NewMemDisk(10000)
-	cache := bcache.MkBcache(suite.d)
-	suite.l = logWrapper{assert: suite.Assert(), Walog: mkLog(cache)}
+	// cache := bcache.MkBcache(suite.d)
+	suite.l = logWrapper{assert: suite.Assert(), Walog: mkLog(suite.d)}
 }
 
 func (suite *WalSuite) restart() logWrapper {

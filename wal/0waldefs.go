@@ -21,7 +21,6 @@ import (
 	"github.com/tchajed/marshal"
 
 	"github.com/mit-pdos/goose-nfsd/common"
-	"github.com/mit-pdos/goose-nfsd/fake-bcache/bcache"
 
 	"sync"
 )
@@ -53,7 +52,7 @@ func MkBlockData(bn common.Bnum, blk disk.Block) BlockData {
 
 type Walog struct {
 	memLock *sync.Mutex
-	d       *bcache.Bcache
+	d       disk.Disk
 
 	condLogger  *sync.Cond
 	condInstall *sync.Cond

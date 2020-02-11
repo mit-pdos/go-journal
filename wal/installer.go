@@ -1,7 +1,8 @@
 package wal
 
 import (
-	"github.com/mit-pdos/goose-nfsd/fake-bcache/bcache"
+	"github.com/tchajed/goose/machine/disk"
+
 	"github.com/mit-pdos/goose-nfsd/util"
 )
 
@@ -25,7 +26,7 @@ func (l *Walog) cutMemLog(installEnd LogPosition) {
 //
 // Does not hold the memLock, but expects exclusive ownership of the data
 // region.
-func installBlocks(d *bcache.Bcache, bufs []BlockData) {
+func installBlocks(d disk.Disk, bufs []BlockData) {
 	for i, buf := range bufs {
 		blkno := buf.bn
 		blk := buf.blk

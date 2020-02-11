@@ -6,7 +6,6 @@ import (
 	"github.com/tchajed/goose/machine/disk"
 
 	"github.com/mit-pdos/goose-nfsd/common"
-	"github.com/mit-pdos/goose-nfsd/fake-bcache/bcache"
 	"github.com/mit-pdos/goose-nfsd/util"
 )
 
@@ -27,7 +26,7 @@ func (l *Walog) recover() {
 	l.nextDiskEnd = l.memStart + LogPosition(len(l.memLog))
 }
 
-func mkLog(disk *bcache.Bcache) *Walog {
+func mkLog(disk disk.Disk) *Walog {
 	ml := new(sync.Mutex)
 	l := &Walog{
 		d:           disk,
@@ -53,7 +52,7 @@ func (l *Walog) startBackgroundThreads() {
 	go func() { l.installer() }()
 }
 
-func MkLog(disk *bcache.Bcache) *Walog {
+func MkLog(disk disk.Disk) *Walog {
 	l := mkLog(disk)
 	l.startBackgroundThreads()
 	return l
