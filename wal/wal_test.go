@@ -9,7 +9,6 @@ import (
 	"github.com/tchajed/goose/machine/disk"
 
 	"github.com/mit-pdos/goose-nfsd/common"
-	"github.com/mit-pdos/goose-nfsd/fake-bcache/bcache"
 )
 
 type logWrapper struct {
@@ -68,14 +67,12 @@ type WalSuite struct {
 
 func (suite *WalSuite) SetupTest() {
 	suite.d = disk.NewMemDisk(10000)
-	// cache := bcache.MkBcache(suite.d)
 	suite.l = logWrapper{assert: suite.Assert(), Walog: mkLog(suite.d)}
 }
 
 func (suite *WalSuite) restart() logWrapper {
 	suite.l.Shutdown()
-	cache := bcache.MkBcache(suite.d)
-	suite.l = logWrapper{assert: suite.Assert(), Walog: MkLog(cache)}
+	suite.l = logWrapper{assert: suite.Assert(), Walog: MkLog(suite.d)}
 	return suite.l
 }
 
