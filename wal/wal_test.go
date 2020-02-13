@@ -24,7 +24,7 @@ func (l logWrapper) Read(bn common.Bnum) disk.Block {
 	return l.Walog.Read(dataBnum(bn))
 }
 
-func (l logWrapper) MemAppend(txn []BlockData) LogPosition {
+func (l logWrapper) MemAppend(txn []Update) LogPosition {
 	pos, ok := l.Walog.MemAppend(txn)
 	l.assert.Equalf(true, ok,
 		"mem append of %v blocks failed", len(txn))
@@ -94,7 +94,7 @@ var block2 = mkBlock(2)
 
 func (suite *WalSuite) TestMemReadWrite() {
 	l := suite.l
-	l.MemAppend([]BlockData{
+	l.MemAppend([]Update{
 		MkBlockData(dataBnum(2), block2),
 		MkBlockData(dataBnum(1), block1),
 	})
@@ -105,11 +105,11 @@ func (suite *WalSuite) TestMemReadWrite() {
 
 func (suite *WalSuite) TestMultiTxnReadWrite() {
 	l := suite.l
-	l.MemAppend([]BlockData{
+	l.MemAppend([]Update{
 		MkBlockData(dataBnum(2), block2),
 		MkBlockData(dataBnum(3), block2),
 	})
-	l.MemAppend([]BlockData{
+	l.MemAppend([]Update{
 		MkBlockData(dataBnum(1), block2),
 		MkBlockData(dataBnum(4), block2),
 	})
@@ -121,12 +121,12 @@ func (suite *WalSuite) TestMultiTxnReadWrite() {
 func (suite *WalSuite) TestFlush() {
 	l := suite.l
 	l.startBackgroundThreads()
-	pos := l.MemAppend([]BlockData{
+	pos := l.MemAppend([]Update{
 		MkBlockData(dataBnum(2), block1),
 		MkBlockData(dataBnum(1), block1),
 	})
 	l.Flush(pos)
-	l.MemAppend([]BlockData{
+	l.MemAppend([]Update{
 		MkBlockData(dataBnum(3), block1),
 		MkBlockData(dataBnum(2), block2),
 	})
@@ -138,10 +138,10 @@ func (suite *WalSuite) TestFlush() {
 
 func (suite *WalSuite) TestFlushOld() {
 	l := suite.l
-	txn1 := l.MemAppend([]BlockData{
+	txn1 := l.MemAppend([]Update{
 		MkBlockData(dataBnum(1), block1),
 	})
-	l.MemAppend([]BlockData{
+	l.MemAppend([]Update{
 		MkBlockData(dataBnum(1), block2),
 		MkBlockData(dataBnum(2), block2),
 	})
@@ -162,8 +162,8 @@ func (suite *WalSuite) TestFlushOld() {
 
 // contiguousTxn gives a transaction that writes b to addresses [start,
 // numWrites)
-func contiguousTxn(start uint64, numWrites int, b disk.Block) []BlockData {
-	var txn []BlockData
+func contiguousTxn(start uint64, numWrites int, b disk.Block) []Update {
+	var txn []Update
 	for i := 0; i < numWrites; i++ {
 		a := dataBnum(start) + uint64(i)
 		txn = append(txn, MkBlockData(a, b))

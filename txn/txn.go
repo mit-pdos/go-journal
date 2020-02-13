@@ -61,8 +61,8 @@ func (txn *Txn) Load(addr addr.Addr) *buf.Buf {
 // Installs the txn's bufs into their blocks and returns the blocks.
 // A buf may only partially update a disk block and several bufs may
 // apply to the same disk block. Assume caller holds commit lock.
-func (txn *Txn) installBufs(bufs []*buf.Buf) []wal.BlockData {
-	var blks = make([]wal.BlockData, 0)
+func (txn *Txn) installBufs(bufs []*buf.Buf) []wal.Update {
+	var blks = make([]wal.Update, 0)
 	var bufsByBlock = make(map[common.Bnum][]*buf.Buf)
 	for _, b := range bufs {
 		bufsByBlock[b.Addr.Blkno] = append(bufsByBlock[b.Addr.Blkno], b)

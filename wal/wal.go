@@ -21,7 +21,7 @@ func (l *Walog) recover() {
 		blk := l.d.Read(uint64(LOGSTART) + (uint64(pos) % l.LogSz()))
 		b := MkBlockData(addr, blk)
 		l.memLog = append(l.memLog, b)
-		l.memLogMap[b.bn] = pos
+		l.memLogMap[b.Addr] = pos
 	}
 	l.nextDiskEnd = l.memStart + LogPosition(len(l.memLog))
 }
@@ -33,7 +33,7 @@ func mkLog(disk disk.Disk) *Walog {
 		memLock:     ml,
 		condLogger:  sync.NewCond(ml),
 		condInstall: sync.NewCond(ml),
-		memLog:      make([]BlockData, 0),
+		memLog:      make([]Update, 0),
 		memStart:    0,
 		diskEnd:     0,
 		nextDiskEnd: 0,
@@ -64,14 +64,14 @@ func MkLog(disk disk.Disk) *Walog {
 // the process of being logged or installed).
 //
 // Assumes caller holds memLock
-func (l *Walog) memWrite(bufs []BlockData) {
+func (l *Walog) memWrite(bufs []Update) {
 	var pos = l.memStart + LogPosition(len(l.memLog))
 	for _, buf := range bufs {
 		// remember most recent position for Blkno
-		oldpos, ok := l.memLogMap[buf.bn]
+		oldpos, ok := l.memLogMap[buf.Addr]
 		if ok && oldpos >= l.nextDiskEnd {
 			util.DPrintf(5, "memWrite: absorb %d pos %d old %d\n",
-				buf.bn, pos, oldpos)
+				buf.Addr, pos, oldpos)
 			// the ownership of this part of the memLog is complicated; maybe the
 			// logger and installer don't ever take ownership of it, which is why
 			// it's safe to write here?
@@ -80,13 +80,13 @@ func (l *Walog) memWrite(bufs []BlockData) {
 		} else {
 			if ok {
 				util.DPrintf(5, "memLogMap: replace %d pos %d old %d\n",
-					buf.bn, pos, oldpos)
+					buf.Addr, pos, oldpos)
 			} else {
 				util.DPrintf(5, "memLogMap: add %d pos %d\n",
-					buf.bn, pos)
+					buf.Addr, pos)
 			}
 			l.memLog = append(l.memLog, buf)
-			l.memLogMap[buf.bn] = pos
+			l.memLogMap[buf.Addr] = pos
 			pos += 1
 		}
 	}
@@ -94,7 +94,7 @@ func (l *Walog) memWrite(bufs []BlockData) {
 }
 
 // Assumes caller holds memLock
-func (l *Walog) doMemAppend(bufs []BlockData) LogPosition {
+func (l *Walog) doMemAppend(bufs []Update) LogPosition {
 	l.memWrite(bufs)
 	txn := l.memStart + LogPosition(len(l.memLog))
 	return txn
@@ -114,7 +114,7 @@ func (l *Walog) readMemLog(blkno common.Bnum) disk.Block {
 		util.DPrintf(5, "read memLogMap: read %d pos %d\n", blkno, pos)
 		buf := l.memLog[pos-l.memStart]
 		blk = make([]byte, disk.BlockSize)
-		copy(blk, buf.blk)
+		copy(blk, buf.Block)
 	}
 	l.memLock.Unlock()
 	return blk
@@ -139,7 +139,7 @@ func (l *Walog) Read(blkno common.Bnum) disk.Block {
 //
 // On failure guaranteed to be idempotent (failure can occur either due to bufs
 // exceeding the size of the log or in principle due to overflowing 2^64 writes)
-func (l *Walog) MemAppend(bufs []BlockData) (LogPosition, bool) {
+func (l *Walog) MemAppend(bufs []Update) (LogPosition, bool) {
 	if uint64(len(bufs)) > LOGSZ {
 		return 0, false
 	}

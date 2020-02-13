@@ -9,17 +9,17 @@ import (
 
 // logBlocks writes bufs to the end of the circular log
 //
-// Requires diskend to reflect the on-disk log, but otherwise operates without
+// Requires diskEnd to reflect the on-disk log, but otherwise operates without
 // holding any locks (with exclusive ownership of the on-disk log).
 //
 // The caller is responsible for updating both the disk and memory copy of
 // diskEnd.
 func logBlocks(d disk.Disk, diskEnd LogPosition,
-	bufs []BlockData) {
+	bufs []Update) {
 	for i, buf := range bufs {
 		pos := diskEnd + LogPosition(i)
-		blk := buf.blk
-		blkno := buf.bn
+		blk := buf.Block
+		blkno := buf.Addr
 		util.DPrintf(5,
 			"logBlocks: %d to log block %d\n", blkno, pos)
 		d.Write(posToDiskAddr(pos), blk)
@@ -63,13 +63,13 @@ func (l *Walog) logAppend() bool {
 	// plus the new ones (through newDiskEnd-memstart)
 	for i, buf := range memlog[:newDiskEnd-memstart] {
 		pos := memstart + LogPosition(i)
-		addrs[uint64(pos)%LOGSZ] = buf.bn
+		addrs[uint64(pos)%LOGSZ] = buf.Addr
 	}
 	newh := &hdr{
 		end:   newDiskEnd,
 		addrs: addrs,
 	}
-	// 3. Update the on-disk log to include the new BlockData.
+	// 3. Update the on-disk log to include the new Update.
 	l.writeHdr(newh)
 	l.d.Barrier()
 

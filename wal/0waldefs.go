@@ -40,13 +40,13 @@ const (
 	LOGSTART = common.Bnum(2)
 )
 
-type BlockData struct {
-	bn  common.Bnum
-	blk disk.Block
+type Update struct {
+	Addr  common.Bnum
+	Block disk.Block
 }
 
-func MkBlockData(bn common.Bnum, blk disk.Block) BlockData {
-	b := BlockData{bn: bn, blk: blk}
+func MkBlockData(bn common.Bnum, blk disk.Block) Update {
+	b := Update{Addr: bn, Block: blk}
 	return b
 }
 
@@ -57,7 +57,7 @@ type Walog struct {
 	condLogger  *sync.Cond
 	condInstall *sync.Cond
 
-	memLog      []BlockData // in-memory log starting with memStart
+	memLog      []Update // in-memory log starting with memStart
 	memStart    LogPosition
 	diskEnd     LogPosition // next block to log to disk
 	nextDiskEnd LogPosition

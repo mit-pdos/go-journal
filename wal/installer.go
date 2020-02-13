@@ -10,7 +10,7 @@ func (l *Walog) cutMemLog(installEnd LogPosition) {
 	// delete from memLogMap, if most recent version of blkno
 	for i, blk := range l.memLog[:installEnd-l.memStart] {
 		pos := l.memStart + LogPosition(i)
-		blkno := blk.bn
+		blkno := blk.Addr
 		oldPos, ok := l.memLogMap[blkno]
 		if ok && oldPos == pos {
 			util.DPrintf(5, "memLogMap: del %d %d\n", blkno, oldPos)
@@ -26,10 +26,10 @@ func (l *Walog) cutMemLog(installEnd LogPosition) {
 //
 // Does not hold the memLock, but expects exclusive ownership of the data
 // region.
-func installBlocks(d disk.Disk, bufs []BlockData) {
+func installBlocks(d disk.Disk, bufs []Update) {
 	for i, buf := range bufs {
-		blkno := buf.bn
-		blk := buf.blk
+		blkno := buf.Addr
+		blk := buf.Block
 		util.DPrintf(5, "installBlocks: write log block %d to %d\n", i, blkno)
 		d.Write(blkno, blk)
 	}
