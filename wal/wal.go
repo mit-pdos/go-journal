@@ -120,17 +120,28 @@ func (l *Walog) readMemLog(blkno common.Bnum) disk.Block {
 	return blk
 }
 
+// Read from only the in-memory cached state (the unstable and logged parts of
+// the wal).
+func (l *Walog) ReadMem(blkno common.Bnum) (disk.Block, bool) {
+	blk := l.readMemLog(blkno)
+	return blk, blk != nil
+}
+
+// Read from only the installed state (a subset of durable state).
+func (l *Walog) ReadInstalled(blkno common.Bnum) disk.Block {
+	return l.d.Read(blkno)
+}
+
+// Read reads from the latest memory state, but does so in a
+// difficult-to-linearize way (specifically, it is future-dependent when to
+// linearize between the l.memLog.Unlock() and the eventual disk read, due to
+// potential concurrent cache or disk writes).
 func (l *Walog) Read(blkno common.Bnum) disk.Block {
-	var blk disk.Block
-
-	blkMem := l.readMemLog(blkno)
-	if blkMem != nil {
-		blk = blkMem
-	} else {
-		blk = l.d.Read(uint64(blkno))
+	blk, ok := l.ReadMem(blkno)
+	if ok {
+		return blk
 	}
-
-	return blk
+	return l.ReadInstalled(blkno)
 }
 
 // Append to in-memory log.
