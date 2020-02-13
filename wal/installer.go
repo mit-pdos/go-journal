@@ -48,7 +48,7 @@ func installBlocks(d disk.Disk, bufs []Update) {
 // Installer holds memLock
 // XXX absorb
 func (l *Walog) logInstall() (uint64, LogPosition) {
-	installEnd := l.diskEnd
+	installEnd := l.circ.diskEnd
 	bufs := l.memLog[:installEnd-l.memStart]
 	if len(bufs) == 0 {
 		return 0, installEnd
@@ -58,10 +58,7 @@ func (l *Walog) logInstall() (uint64, LogPosition) {
 
 	util.DPrintf(5, "logInstall up to %d\n", installEnd)
 	installBlocks(l.d, bufs)
-	h := &hdr2{
-		start: installEnd,
-	}
-	l.writeHdr2(h)
+	l.circ.Empty()
 
 	l.memLock.Lock()
 	if installEnd < l.memStart {

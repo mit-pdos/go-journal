@@ -10,32 +10,28 @@ import (
 )
 
 func (l *Walog) recover() {
-	h := l.readHdr()
-	h2 := l.readHdr2()
-	l.memStart = h2.start
-	l.diskEnd = h.end
-	util.DPrintf(1, "recover %d %d\n", l.memStart, l.diskEnd)
-	for pos := h2.start; pos < h.end; pos++ {
-		addr := h.addrs[uint64(pos)%l.LogSz()]
-		util.DPrintf(1, "recover block %d\n", addr)
-		blk := l.d.Read(uint64(LOGSTART) + (uint64(pos) % l.LogSz()))
-		b := MkBlockData(addr, blk)
-		l.memLog = append(l.memLog, b)
-		l.memLogMap[b.Addr] = pos
+	circ, bufs := recoverCircular(l.d)
+	l.circ = circ
+	l.memLog = bufs
+	l.memStart = l.circ.diskStart
+	util.DPrintf(1, "recover %d %d\n", l.memStart, l.circ.diskEnd)
+	for i, buf := range bufs {
+		l.memLogMap[buf.Addr] = l.circ.diskStart + LogPosition(i)
 	}
-	l.nextDiskEnd = l.memStart + LogPosition(len(l.memLog))
+	l.nextDiskEnd = l.circ.diskEnd + LogPosition(len(bufs))
 }
 
 func mkLog(disk disk.Disk) *Walog {
+	circ, memLog := initCircular(disk)
 	ml := new(sync.Mutex)
 	l := &Walog{
 		d:           disk,
+		circ:        circ,
 		memLock:     ml,
 		condLogger:  sync.NewCond(ml),
 		condInstall: sync.NewCond(ml),
-		memLog:      make([]Update, 0),
+		memLog:      memLog,
 		memStart:    0,
-		diskEnd:     0,
 		nextDiskEnd: 0,
 		shutdown:    false,
 		nthread:     0,
@@ -152,9 +148,7 @@ func (l *Walog) MemAppend(bufs []Update) (LogPosition, bool) {
 			ok = false
 			break
 		}
-		memEnd := LogPosition(uint64(l.memStart) + uint64(len(l.memLog)))
-		memSize := uint64(memEnd) - uint64(l.diskEnd)
-		if memSize+uint64(len(bufs)) > LOGSZ {
+		if l.circ.SpaceRemaining() == 0 {
 			util.DPrintf(5, "memAppend: log is full; try again")
 			// commit everything, stable and unstable trans
 			l.nextDiskEnd = l.memStart + LogPosition(len(l.memLog))
@@ -182,7 +176,7 @@ func (l *Walog) Flush(txn LogPosition) {
 		l.nextDiskEnd = l.memStart + LogPosition(len(l.memLog))
 	}
 	for {
-		if txn <= l.diskEnd {
+		if txn <= l.circ.diskEnd {
 			break
 		}
 		l.condLogger.Wait()

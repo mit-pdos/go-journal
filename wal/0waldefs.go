@@ -18,7 +18,6 @@ package wal
 
 import (
 	"github.com/tchajed/goose/machine/disk"
-	"github.com/tchajed/marshal"
 
 	"github.com/mit-pdos/goose-nfsd/common"
 
@@ -31,8 +30,6 @@ const (
 	LOGSZ         = HDRADDRS
 	LOGDISKBLOCKS = HDRADDRS + 2 // 2 for log header
 )
-
-type LogPosition uint64
 
 const (
 	LOGHDR   = common.Bnum(0)
@@ -53,13 +50,13 @@ func MkBlockData(bn common.Bnum, blk disk.Block) Update {
 type Walog struct {
 	memLock *sync.Mutex
 	d       disk.Disk
+	circ    circular
 
 	condLogger  *sync.Cond
 	condInstall *sync.Cond
 
 	memLog      []Update // in-memory log starting with memStart
 	memStart    LogPosition
-	diskEnd     LogPosition // next block to log to disk
 	nextDiskEnd LogPosition
 
 	// For shutdown:
@@ -69,76 +66,6 @@ type Walog struct {
 
 	// For speeding up reads:
 	memLogMap map[common.Bnum]LogPosition
-}
-
-// On-disk header in the first block of the log
-type hdr struct {
-	end   LogPosition
-	addrs []common.Bnum
-}
-
-func decodeHdr(blk disk.Block) *hdr {
-	h := &hdr{
-		end:   0,
-		addrs: nil,
-	}
-	dec := marshal.NewDec(blk)
-	h.end = LogPosition(dec.GetInt())
-	h.addrs = dec.GetInts(HDRADDRS)
-	return h
-}
-
-func encodeHdr(h hdr) disk.Block {
-	enc := marshal.NewEnc(disk.BlockSize)
-	enc.PutInt(uint64(h.end))
-	enc.PutInts(h.addrs)
-	return enc.Finish()
-}
-
-// On-disk header in the second block of the log
-type hdr2 struct {
-	start LogPosition
-}
-
-func decodeHdr2(blk disk.Block) *hdr2 {
-	h := &hdr2{
-		start: 0,
-	}
-	dec := marshal.NewDec(blk)
-	h.start = LogPosition(dec.GetInt())
-	return h
-}
-
-func encodeHdr2(h hdr2) disk.Block {
-	enc := marshal.NewEnc(disk.BlockSize)
-	enc.PutInt(uint64(h.start))
-	return enc.Finish()
-}
-
-func (l *Walog) writeHdr(h *hdr) {
-	blk := encodeHdr(*h)
-	l.d.Write(uint64(LOGHDR), blk)
-}
-
-func (l *Walog) readHdr() *hdr {
-	blk := l.d.Read(uint64(LOGHDR))
-	h := decodeHdr(blk)
-	return h
-}
-
-func (l *Walog) writeHdr2(h *hdr2) {
-	blk := encodeHdr2(*h)
-	l.d.Write(uint64(LOGHDR2), blk)
-}
-
-func (l *Walog) readHdr2() *hdr2 {
-	blk := l.d.Read(uint64(LOGHDR2))
-	h := decodeHdr2(blk)
-	return h
-}
-
-func posToDiskAddr(pos LogPosition) uint64 {
-	return LOGSTART + uint64(pos)%LOGSZ
 }
 
 func (l *Walog) LogSz() uint64 {
