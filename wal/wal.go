@@ -10,19 +10,16 @@ import (
 )
 
 func (l *Walog) recover() {
-	circ, bufs := recoverCircular(l.d)
-	l.circ = circ
-	l.memLog = bufs
 	l.memStart = l.circ.diskStart
 	util.DPrintf(1, "recover %d %d\n", l.memStart, l.circ.diskEnd)
-	for i, buf := range bufs {
+	for i, buf := range l.memLog {
 		l.memLogMap[buf.Addr] = l.circ.diskStart + LogPosition(i)
 	}
-	l.nextDiskEnd = l.circ.diskEnd + LogPosition(len(bufs))
+	l.nextDiskEnd = l.circ.diskEnd + LogPosition(len(l.memLog))
 }
 
 func mkLog(disk disk.Disk) *Walog {
-	circ, memLog := initCircular(disk)
+	circ, memLog := recoverCircular(disk)
 	ml := new(sync.Mutex)
 	l := &Walog{
 		d:           disk,
