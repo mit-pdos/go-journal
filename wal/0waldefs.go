@@ -50,7 +50,7 @@ func MkBlockData(bn common.Bnum, blk disk.Block) Update {
 type Walog struct {
 	memLock *sync.Mutex
 	d       disk.Disk
-	circ    circular
+	circ    *circular
 
 	condLogger  *sync.Cond
 	condInstall *sync.Cond

@@ -29,10 +29,8 @@ func (l *Walog) logAppend() bool {
 	if len(newbufs) == 0 {
 		return false
 	}
-
 	l.memLock.Unlock()
 
-	// 1. Update the blocks in the log.
 	l.circ.Append(newbufs)
 
 	l.memLock.Lock()
