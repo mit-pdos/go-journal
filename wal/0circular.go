@@ -4,10 +4,21 @@ import (
 	"github.com/tchajed/goose/machine/disk"
 	"github.com/tchajed/marshal"
 
+	"github.com/mit-pdos/goose-nfsd/common"
 	"github.com/mit-pdos/goose-nfsd/util"
 )
 
 type LogPosition uint64
+
+type Update struct {
+	Addr  common.Bnum
+	Block disk.Block
+}
+
+func MkBlockData(bn common.Bnum, blk disk.Block) Update {
+	b := Update{Addr: bn, Block: blk}
+	return b
+}
 
 type circular struct {
 	d         disk.Disk
@@ -23,7 +34,12 @@ func initCircular(d disk.Disk) (*circular, []Update) {
 	d.Write(LOGHDR, b0)
 	d.Write(LOGHDR2, b0)
 	addrs := make([]uint64, HDRADDRS)
-	return &circular{d: d, diskAddrs: addrs}, nil
+	return &circular{
+		d:         d,
+		diskStart: 0,
+		diskEnd:   0,
+		diskAddrs: addrs,
+	}, nil
 }
 
 func recoverCircular(d disk.Disk) (*circular, []Update) {
@@ -34,7 +50,7 @@ func recoverCircular(d disk.Disk) (*circular, []Update) {
 	hdr2 := d.Read(LOGHDR2)
 	dec2 := marshal.NewDec(hdr2)
 	start := dec2.GetInt()
-	bufs := make([]Update, 0)
+	var bufs []Update
 	for pos := start; pos < end; pos++ {
 		addr := addrs[pos%LOGSZ]
 		b := d.Read(LOGSTART + pos%LOGSZ)

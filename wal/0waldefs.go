@@ -37,16 +37,6 @@ const (
 	LOGSTART = common.Bnum(2)
 )
 
-type Update struct {
-	Addr  common.Bnum
-	Block disk.Block
-}
-
-func MkBlockData(bn common.Bnum, blk disk.Block) Update {
-	b := Update{Addr: bn, Block: blk}
-	return b
-}
-
 type Walog struct {
 	memLock *sync.Mutex
 	d       disk.Disk
