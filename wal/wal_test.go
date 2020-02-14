@@ -24,7 +24,7 @@ func (l logWrapper) Read(bn common.Bnum) disk.Block {
 	return l.Walog.Read(dataBnum(bn))
 }
 
-func (l logWrapper) MemAppend(txn []BlockData) LogPosition {
+func (l logWrapper) MemAppend(txn []Update) LogPosition {
 	pos, ok := l.Walog.MemAppend(txn)
 	l.assert.Equalf(true, ok,
 		"mem append of %v blocks failed", len(txn))
@@ -55,8 +55,8 @@ func (l logWrapper) install() {
 
 func (l *logWrapper) Restart() {
 	l.Walog.Shutdown()
-	disk := l.Walog.d
-	l.Walog = mkLog(disk)
+	d := l.Walog.d
+	l.Walog = mkLog(d)
 }
 
 type WalSuite struct {
@@ -70,19 +70,13 @@ func (suite *WalSuite) SetupTest() {
 	suite.l = logWrapper{assert: suite.Assert(), Walog: mkLog(suite.d)}
 }
 
-func (suite *WalSuite) restart() logWrapper {
-	suite.l.Shutdown()
-	suite.l = logWrapper{assert: suite.Assert(), Walog: MkLog(suite.d)}
-	return suite.l
-}
-
 func TestWal(t *testing.T) {
 	suite.Run(t, new(WalSuite))
 }
 
 func mkBlock(b byte) disk.Block {
 	block := make(disk.Block, disk.BlockSize)
-	for i := range block {
+	for i := 0; i < 10; i++ {
 		block[i] = b
 	}
 	return block
@@ -94,7 +88,7 @@ var block2 = mkBlock(2)
 
 func (suite *WalSuite) TestMemReadWrite() {
 	l := suite.l
-	l.MemAppend([]BlockData{
+	l.MemAppend([]Update{
 		MkBlockData(dataBnum(2), block2),
 		MkBlockData(dataBnum(1), block1),
 	})
@@ -105,11 +99,11 @@ func (suite *WalSuite) TestMemReadWrite() {
 
 func (suite *WalSuite) TestMultiTxnReadWrite() {
 	l := suite.l
-	l.MemAppend([]BlockData{
+	l.MemAppend([]Update{
 		MkBlockData(dataBnum(2), block2),
 		MkBlockData(dataBnum(3), block2),
 	})
-	l.MemAppend([]BlockData{
+	l.MemAppend([]Update{
 		MkBlockData(dataBnum(1), block2),
 		MkBlockData(dataBnum(4), block2),
 	})
@@ -121,12 +115,12 @@ func (suite *WalSuite) TestMultiTxnReadWrite() {
 func (suite *WalSuite) TestFlush() {
 	l := suite.l
 	l.startBackgroundThreads()
-	pos := l.MemAppend([]BlockData{
+	pos := l.MemAppend([]Update{
 		MkBlockData(dataBnum(2), block1),
 		MkBlockData(dataBnum(1), block1),
 	})
 	l.Flush(pos)
-	l.MemAppend([]BlockData{
+	l.MemAppend([]Update{
 		MkBlockData(dataBnum(3), block1),
 		MkBlockData(dataBnum(2), block2),
 	})
@@ -138,10 +132,10 @@ func (suite *WalSuite) TestFlush() {
 
 func (suite *WalSuite) TestFlushOld() {
 	l := suite.l
-	txn1 := l.MemAppend([]BlockData{
+	txn1 := l.MemAppend([]Update{
 		MkBlockData(dataBnum(1), block1),
 	})
-	l.MemAppend([]BlockData{
+	l.MemAppend([]Update{
 		MkBlockData(dataBnum(1), block2),
 		MkBlockData(dataBnum(2), block2),
 	})
@@ -162,8 +156,8 @@ func (suite *WalSuite) TestFlushOld() {
 
 // contiguousTxn gives a transaction that writes b to addresses [start,
 // numWrites)
-func contiguousTxn(start uint64, numWrites int, b disk.Block) []BlockData {
-	var txn []BlockData
+func contiguousTxn(start uint64, numWrites int, b disk.Block) []Update {
+	var txn []Update
 	for i := 0; i < numWrites; i++ {
 		a := dataBnum(start) + uint64(i)
 		txn = append(txn, MkBlockData(a, b))
@@ -245,7 +239,7 @@ func (suite *WalSuite) TestRecoverFlushed() {
 	pos := l.MemAppend(contiguousTxn(20, 10, block2))
 	l.Flush(pos)
 
-	l = suite.restart()
+	l.Restart()
 	suite.Equal(block0, l.Read(0))
 	suite.Equal(block1, l.Read(2))
 	suite.Equal(block2, l.Read(20))
@@ -257,7 +251,7 @@ func (suite *WalSuite) TestRecoverPending() {
 	l.MemAppend(contiguousTxn(1, 3, block1))
 	l.MemAppend(contiguousTxn(20, 10, block2))
 
-	l = suite.restart()
+	l.Restart()
 	suite.Equal(block0, l.Read(0))
 	// the transactions may or may not have committed; check for atomicity
 	suite.Equal(l.Read(1), l.Read(2),
