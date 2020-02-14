@@ -55,8 +55,8 @@ func (l logWrapper) install() {
 
 func (l *logWrapper) Restart() {
 	l.Walog.Shutdown()
-	disk := l.Walog.d
-	l.Walog = mkLog(disk)
+	d := l.Walog.d
+	l.Walog = mkLog(d)
 }
 
 type WalSuite struct {
@@ -70,19 +70,13 @@ func (suite *WalSuite) SetupTest() {
 	suite.l = logWrapper{assert: suite.Assert(), Walog: mkLog(suite.d)}
 }
 
-func (suite *WalSuite) restart() logWrapper {
-	suite.l.Shutdown()
-	suite.l = logWrapper{assert: suite.Assert(), Walog: MkLog(suite.d)}
-	return suite.l
-}
-
 func TestWal(t *testing.T) {
 	suite.Run(t, new(WalSuite))
 }
 
 func mkBlock(b byte) disk.Block {
 	block := make(disk.Block, disk.BlockSize)
-	for i := range block {
+	for i := 0; i < 10; i++ {
 		block[i] = b
 	}
 	return block
@@ -245,7 +239,7 @@ func (suite *WalSuite) TestRecoverFlushed() {
 	pos := l.MemAppend(contiguousTxn(20, 10, block2))
 	l.Flush(pos)
 
-	l = suite.restart()
+	l.Restart()
 	suite.Equal(block0, l.Read(0))
 	suite.Equal(block1, l.Read(2))
 	suite.Equal(block2, l.Read(20))
@@ -257,7 +251,7 @@ func (suite *WalSuite) TestRecoverPending() {
 	l.MemAppend(contiguousTxn(1, 3, block1))
 	l.MemAppend(contiguousTxn(20, 10, block2))
 
-	l = suite.restart()
+	l.Restart()
 	suite.Equal(block0, l.Read(0))
 	// the transactions may or may not have committed; check for atomicity
 	suite.Equal(l.Read(1), l.Read(2),

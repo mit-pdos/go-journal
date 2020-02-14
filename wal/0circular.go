@@ -90,4 +90,5 @@ func (c *circular) Empty() {
 	c.diskStart = c.diskEnd
 	b := c.hdr2()
 	c.d.Write(LOGHDR2, b)
+	c.d.Barrier()
 }
