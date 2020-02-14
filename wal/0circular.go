@@ -82,6 +82,9 @@ func (c *circular) hdr2() disk.Block {
 }
 
 func (c *circular) appendFreeSpace(bufs []Update) {
+	if c.SpaceRemaining() < uint64(len(bufs)) {
+		panic("append would overflow circular log")
+	}
 	for i, buf := range bufs {
 		pos := c.diskEnd + LogPosition(i)
 		blk := buf.Block

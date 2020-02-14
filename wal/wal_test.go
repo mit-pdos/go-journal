@@ -31,12 +31,6 @@ func (l logWrapper) MemAppend(txn []Update) LogPosition {
 	return pos
 }
 
-func (l logWrapper) log() {
-	l.Walog.memLock.Lock()
-	defer l.Walog.memLock.Unlock()
-	l.assert.True(l.logAppend(), "expected to make progress")
-}
-
 func (l logWrapper) logOnce() {
 	progress := false
 	for !progress {
@@ -51,6 +45,16 @@ func (l logWrapper) install() {
 	defer l.Walog.memLock.Unlock()
 	numBlocks, _ := l.logInstall()
 	l.assert.Greater(numBlocks, uint64(0), "expected to install blocks")
+}
+
+func (l logWrapper) installOnce() {
+	progress := false
+	for !progress {
+		l.Walog.memLock.Lock()
+		numBlocks, _ := l.logInstall()
+		progress = numBlocks > 0
+		l.Walog.memLock.Unlock()
+	}
 }
 
 func (l *logWrapper) Restart() {
@@ -176,6 +180,21 @@ func (suite *WalSuite) TestTxnOverflowingMemLog() {
 		"first transaction should be on disk")
 	suite.Equal(block2, l.Read(LOGSZ+10),
 		"second transaction should at least be in memory")
+}
+
+func (suite *WalSuite) TestOverflowNoFlush() {
+	l := suite.l
+	// leaves one address in the memLog
+	l.MemAppend(contiguousTxn(1, int(LOGSZ-1), block1))
+	go func() {
+		l.MemAppend(contiguousTxn(LOGSZ+10, 2, block2))
+	}()
+	go func() {
+		l.installOnce()
+	}()
+	l.logOnce()
+	suite.Equal(block1, l.Read(1),
+		"first transaction should be on disk")
 }
 
 func (suite *WalSuite) TestFillingLog() {

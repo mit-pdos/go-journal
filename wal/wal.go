@@ -156,7 +156,10 @@ func (l *Walog) MemAppend(bufs []Update) (LogPosition, bool) {
 			ok = false
 			break
 		}
-		if l.circ.SpaceRemaining() == 0 {
+		// TODO: relate this calculation to the circular log free space
+		memEnd := LogPosition(uint64(l.memStart) + uint64(len(l.memLog)))
+		memSize := uint64(memEnd) - uint64(l.circ.diskEnd)
+		if memSize+uint64(len(bufs)) > LOGSZ {
 			util.DPrintf(5, "memAppend: log is full; try again")
 			// commit everything, stable and unstable trans
 			l.nextDiskEnd = l.memStart + LogPosition(len(l.memLog))
