@@ -27,8 +27,9 @@ func mkLockShard() *lockShard {
 }
 
 func (lmap *lockShard) acquire(addr uint64, id uint64) {
+	var done bool
 	lmap.mu.Lock()
-	for {
+	for !done {
 		var state *lockState
 		state1, ok1 := lmap.state[addr]
 		if ok1 {
@@ -47,16 +48,16 @@ func (lmap *lockShard) acquire(addr uint64, id uint64) {
 		if !state.held {
 			state.held = true
 			state.owner = id
-			break
-		}
+			done = true
+		} else {
+			state.waiters += 1
+			state.cond.Wait()
 
-		state.waiters += 1
-		state.cond.Wait()
-
-		state2, ok2 := lmap.state[addr]
-		if ok2 {
-			// Should always be true, but we don't need to prove this
-			state2.waiters -= 1
+			state2, ok2 := lmap.state[addr]
+			if ok2 {
+				// Should always be true, but we don't need to prove this
+				state2.waiters -= 1
+			}
 		}
 	}
 	lmap.mu.Unlock()
