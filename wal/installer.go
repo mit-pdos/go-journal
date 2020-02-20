@@ -57,7 +57,7 @@ func (l *Walog) logInstall() (uint64, LogPosition) {
 
 	util.DPrintf(5, "logInstall up to %d\n", installEnd)
 	installBlocks(l.d, bufs)
-	l.circ.Advance(l.d, installEnd)
+	Advance(l.d, installEnd)
 
 	l.memLock.Lock()
 	l.cutMemLog(installEnd)

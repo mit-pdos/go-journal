@@ -27,7 +27,7 @@ import (
 type Walog struct {
 	memLock *sync.Mutex
 	d       disk.Disk
-	circ    *circular
+	circ    *circularAppender
 
 	condLogger  *sync.Cond
 	condInstall *sync.Cond

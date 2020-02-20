@@ -20,23 +20,23 @@ func MkBlockData(bn common.Bnum, blk disk.Block) Update {
 	return b
 }
 
-type circular struct {
+type circularAppender struct {
 	diskAddrs []uint64
 }
 
 // initCircular takes ownership of the circular log, which is the first
 // LOGDISKBLOCKS of the disk.
-func initCircular(d disk.Disk) *circular {
+func initCircular(d disk.Disk) *circularAppender {
 	b0 := make([]byte, disk.BlockSize)
 	d.Write(LOGHDR, b0)
 	d.Write(LOGHDR2, b0)
 	addrs := make([]uint64, HDRADDRS)
-	return &circular{
+	return &circularAppender{
 		diskAddrs: addrs,
 	}
 }
 
-func recoverCircular(d disk.Disk) (*circular, LogPosition, LogPosition, []Update) {
+func recoverCircular(d disk.Disk) (*circularAppender, LogPosition, LogPosition, []Update) {
 	hdr1 := d.Read(LOGHDR)
 	dec1 := marshal.NewDec(hdr1)
 	end := dec1.GetInt()
@@ -50,25 +50,25 @@ func recoverCircular(d disk.Disk) (*circular, LogPosition, LogPosition, []Update
 		b := d.Read(LOGSTART + pos%LOGSZ)
 		bufs = append(bufs, Update{Addr: addr, Block: b})
 	}
-	return &circular{
+	return &circularAppender{
 		diskAddrs: addrs,
 	}, LogPosition(start), LogPosition(end), bufs
 }
 
-func (c *circular) hdr1(end LogPosition) disk.Block {
+func (c *circularAppender) hdr1(end LogPosition) disk.Block {
 	enc := marshal.NewEnc(disk.BlockSize)
 	enc.PutInt(uint64(end))
 	enc.PutInts(c.diskAddrs)
 	return enc.Finish()
 }
 
-func (c *circular) hdr2(start LogPosition) disk.Block {
+func hdr2(start LogPosition) disk.Block {
 	enc := marshal.NewEnc(disk.BlockSize)
 	enc.PutInt(uint64(start))
 	return enc.Finish()
 }
 
-func (c *circular) logBlocks(d disk.Disk, end LogPosition, bufs []Update) {
+func (c *circularAppender) logBlocks(d disk.Disk, end LogPosition, bufs []Update) {
 	for i, buf := range bufs {
 		pos := end + LogPosition(i)
 		blk := buf.Block
@@ -80,7 +80,7 @@ func (c *circular) logBlocks(d disk.Disk, end LogPosition, bufs []Update) {
 	}
 }
 
-func (c *circular) Append(d disk.Disk, end LogPosition, bufs []Update) {
+func (c *circularAppender) Append(d disk.Disk, end LogPosition, bufs []Update) {
 	c.logBlocks(d, end, bufs)
 	// atomic installation
 	newEnd := end + LogPosition(len(bufs))
@@ -89,8 +89,8 @@ func (c *circular) Append(d disk.Disk, end LogPosition, bufs []Update) {
 	d.Barrier()
 }
 
-func (c *circular) Advance(d disk.Disk, newStart LogPosition) {
-	b := c.hdr2(newStart)
+func Advance(d disk.Disk, newStart LogPosition) {
+	b := hdr2(newStart)
 	d.Write(LOGHDR2, b)
 	d.Barrier()
 }
