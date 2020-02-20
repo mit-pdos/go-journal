@@ -21,28 +21,22 @@ func MkBlockData(bn common.Bnum, blk disk.Block) Update {
 }
 
 type circular struct {
-	d         disk.Disk
-	diskStart LogPosition
-	diskEnd   LogPosition
 	diskAddrs []uint64
 }
 
 // initCircular takes ownership of the circular log, which is the first
 // LOGDISKBLOCKS of the disk.
-func initCircular(d disk.Disk) (*circular, []Update) {
+func initCircular(d disk.Disk) *circular {
 	b0 := make([]byte, disk.BlockSize)
 	d.Write(LOGHDR, b0)
 	d.Write(LOGHDR2, b0)
 	addrs := make([]uint64, HDRADDRS)
 	return &circular{
-		d:         d,
-		diskStart: 0,
-		diskEnd:   0,
 		diskAddrs: addrs,
-	}, nil
+	}
 }
 
-func recoverCircular(d disk.Disk) (*circular, []Update) {
+func recoverCircular(d disk.Disk) (*circular, LogPosition, LogPosition, []Update) {
 	hdr1 := d.Read(LOGHDR)
 	dec1 := marshal.NewDec(hdr1)
 	end := dec1.GetInt()
@@ -57,57 +51,46 @@ func recoverCircular(d disk.Disk) (*circular, []Update) {
 		bufs = append(bufs, Update{Addr: addr, Block: b})
 	}
 	return &circular{
-		d:         d,
-		diskStart: LogPosition(start),
-		diskEnd:   LogPosition(end),
 		diskAddrs: addrs,
-	}, bufs
+	}, LogPosition(start), LogPosition(end), bufs
 }
 
-func (c *circular) SpaceRemaining() uint64 {
-	return LOGSZ - uint64(c.diskEnd-c.diskStart)
-}
-
-func (c *circular) hdr1() disk.Block {
+func (c *circular) hdr1(end LogPosition) disk.Block {
 	enc := marshal.NewEnc(disk.BlockSize)
-	enc.PutInt(uint64(c.diskEnd))
+	enc.PutInt(uint64(end))
 	enc.PutInts(c.diskAddrs)
 	return enc.Finish()
 }
 
-func (c *circular) hdr2() disk.Block {
+func (c *circular) hdr2(start LogPosition) disk.Block {
 	enc := marshal.NewEnc(disk.BlockSize)
-	enc.PutInt(uint64(c.diskStart))
+	enc.PutInt(uint64(start))
 	return enc.Finish()
 }
 
-func (c *circular) appendFreeSpace(bufs []Update) {
-	if c.SpaceRemaining() < uint64(len(bufs)) {
-		panic("append would overflow circular log")
-	}
+func (c *circular) logBlocks(d disk.Disk, end LogPosition, bufs []Update) {
 	for i, buf := range bufs {
-		pos := c.diskEnd + LogPosition(i)
+		pos := end + LogPosition(i)
 		blk := buf.Block
 		blkno := buf.Addr
 		util.DPrintf(5,
 			"logBlocks: %d to log block %d\n", blkno, pos)
-		c.d.Write(LOGSTART+uint64(pos)%LOGSZ, blk)
+		d.Write(LOGSTART+uint64(pos)%LOGSZ, blk)
 		c.diskAddrs[uint64(pos)%LOGSZ] = blkno
 	}
-	c.diskEnd = c.diskEnd + LogPosition(len(bufs))
 }
 
-func (c *circular) Append(bufs []Update) {
-	c.appendFreeSpace(bufs)
+func (c *circular) Append(d disk.Disk, end LogPosition, bufs []Update) {
+	c.logBlocks(d, end, bufs)
 	// atomic installation
-	b := c.hdr1()
-	c.d.Write(LOGHDR, b)
-	c.d.Barrier()
+	newEnd := end + LogPosition(len(bufs))
+	b := c.hdr1(newEnd)
+	d.Write(LOGHDR, b)
+	d.Barrier()
 }
 
-func (c *circular) Empty() {
-	c.diskStart = c.diskEnd
-	b := c.hdr2()
-	c.d.Write(LOGHDR2, b)
-	c.d.Barrier()
+func (c *circular) Advance(d disk.Disk, newStart LogPosition) {
+	b := c.hdr2(newStart)
+	d.Write(LOGHDR2, b)
+	d.Barrier()
 }

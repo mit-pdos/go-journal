@@ -24,16 +24,17 @@ func (l *Walog) logAppend() bool {
 	memstart := l.memStart
 	memlog := l.memLog
 	newDiskEnd := l.nextDiskEnd
-	diskEnd := l.circ.diskEnd
+	diskEnd := l.diskEnd
 	newbufs := memlog[diskEnd-memstart : newDiskEnd-memstart]
 	if len(newbufs) == 0 {
 		return false
 	}
 	l.memLock.Unlock()
 
-	l.circ.Append(newbufs)
+	l.circ.Append(l.d, diskEnd, newbufs)
 
 	l.memLock.Lock()
+	l.diskEnd = newDiskEnd
 	l.condLogger.Broadcast()
 	l.condInstall.Broadcast()
 

@@ -12,7 +12,7 @@ func (l *Walog) cutMemLog(installEnd LogPosition) {
 		pos := l.memStart + LogPosition(i)
 		blkno := blk.Addr
 		oldPos, ok := l.memLogMap[blkno]
-		if ok && oldPos == pos {
+		if ok && oldPos <= pos {
 			util.DPrintf(5, "memLogMap: del %d %d\n", blkno, oldPos)
 			delete(l.memLogMap, blkno)
 		}
@@ -46,9 +46,8 @@ func installBlocks(d disk.Disk, bufs []Update) {
 // for debugging)
 //
 // Installer holds memLock
-// XXX absorb
 func (l *Walog) logInstall() (uint64, LogPosition) {
-	installEnd := l.circ.diskEnd
+	installEnd := l.diskEnd
 	bufs := l.memLog[:installEnd-l.memStart]
 	if len(bufs) == 0 {
 		return 0, installEnd
@@ -58,12 +57,9 @@ func (l *Walog) logInstall() (uint64, LogPosition) {
 
 	util.DPrintf(5, "logInstall up to %d\n", installEnd)
 	installBlocks(l.d, bufs)
-	l.circ.Empty()
+	l.circ.Advance(l.d, installEnd)
 
 	l.memLock.Lock()
-	if installEnd < l.memStart {
-		panic("logInstall")
-	}
 	l.cutMemLog(installEnd)
 	l.condInstall.Broadcast()
 

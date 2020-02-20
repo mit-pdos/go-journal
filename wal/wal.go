@@ -10,16 +10,14 @@ import (
 )
 
 func (l *Walog) recover() {
-	l.memStart = l.circ.diskStart
-	util.DPrintf(1, "recover %d %d\n", l.memStart, l.circ.diskEnd)
+	util.DPrintf(1, "recover %d %d\n", l.memStart, l.diskEnd)
 	for i, buf := range l.memLog {
-		l.memLogMap[buf.Addr] = l.circ.diskStart + LogPosition(i)
+		l.memLogMap[buf.Addr] = l.memStart + LogPosition(i)
 	}
-	l.nextDiskEnd = l.circ.diskEnd + LogPosition(len(l.memLog))
 }
 
 func mkLog(disk disk.Disk) *Walog {
-	circ, memLog := recoverCircular(disk)
+	circ, start, end, memLog := recoverCircular(disk)
 	ml := new(sync.Mutex)
 	l := &Walog{
 		d:           disk,
@@ -28,8 +26,9 @@ func mkLog(disk disk.Disk) *Walog {
 		condLogger:  sync.NewCond(ml),
 		condInstall: sync.NewCond(ml),
 		memLog:      memLog,
-		memStart:    0,
-		nextDiskEnd: 0,
+		memStart:    start,
+		diskEnd:     end,
+		nextDiskEnd: end,
 		shutdown:    false,
 		nthread:     0,
 		condShut:    sync.NewCond(ml),
@@ -158,7 +157,7 @@ func (l *Walog) MemAppend(bufs []Update) (LogPosition, bool) {
 		}
 		// TODO: relate this calculation to the circular log free space
 		memEnd := LogPosition(uint64(l.memStart) + uint64(len(l.memLog)))
-		memSize := uint64(memEnd) - uint64(l.circ.diskEnd)
+		memSize := uint64(memEnd) - uint64(l.diskEnd)
 		if memSize+uint64(len(bufs)) > LOGSZ {
 			util.DPrintf(5, "memAppend: log is full; try again")
 			// commit everything, stable and unstable trans
@@ -166,6 +165,7 @@ func (l *Walog) MemAppend(bufs []Update) (LogPosition, bool) {
 			l.condLogger.Broadcast()
 			l.condLogger.Wait()
 			continue
+			// XXX this does not Goose correctly
 		}
 		txn = l.doMemAppend(bufs)
 		break
@@ -187,7 +187,7 @@ func (l *Walog) Flush(txn LogPosition) {
 		l.nextDiskEnd = l.memStart + LogPosition(len(l.memLog))
 	}
 	for {
-		if txn <= l.circ.diskEnd {
+		if txn <= l.diskEnd {
 			break
 		}
 		l.condLogger.Wait()

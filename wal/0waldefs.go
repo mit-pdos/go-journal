@@ -34,6 +34,7 @@ type Walog struct {
 
 	memLog      []Update // in-memory log starting with memStart
 	memStart    LogPosition
+	diskEnd     LogPosition
 	nextDiskEnd LogPosition
 
 	// For shutdown:
