@@ -20,8 +20,6 @@ import (
 	"github.com/tchajed/goose/machine/disk"
 
 	"github.com/mit-pdos/goose-nfsd/common"
-
-	"sync"
 )
 
 const (
@@ -36,28 +34,3 @@ const (
 	LOGHDR2  = common.Bnum(1)
 	LOGSTART = common.Bnum(2)
 )
-
-type Walog struct {
-	memLock *sync.Mutex
-	d       disk.Disk
-	circ    *circular
-
-	condLogger  *sync.Cond
-	condInstall *sync.Cond
-
-	memLog      []Update // in-memory log starting with memStart
-	memStart    LogPosition
-	nextDiskEnd LogPosition
-
-	// For shutdown:
-	shutdown bool
-	nthread  uint64
-	condShut *sync.Cond
-
-	// For speeding up reads:
-	memLogMap map[common.Bnum]LogPosition
-}
-
-func (l *Walog) LogSz() uint64 {
-	return common.HDRADDRS
-}
