@@ -16,15 +16,15 @@ import (
 func (l *Walog) logAppend() bool {
 	// Wait until there is sufficient space on disk for the entire
 	// in-memory log (i.e., the installer must catch up).
-	for uint64(len(l.memLog)) > LOGSZ {
+	for uint64(len(l.st.memLog)) > LOGSZ {
 		l.condInstall.Wait()
 	}
 	// establishes uint64(len(l.memLog)) <= LOGSZ
 
-	memstart := l.memStart
-	memlog := l.memLog
-	newDiskEnd := l.nextDiskEnd
-	diskEnd := l.diskEnd
+	memstart := l.st.memStart
+	memlog := l.st.memLog
+	newDiskEnd := l.st.nextDiskEnd
+	diskEnd := l.st.diskEnd
 	newbufs := memlog[diskEnd-memstart : newDiskEnd-memstart]
 	if len(newbufs) == 0 {
 		return false
@@ -34,7 +34,7 @@ func (l *Walog) logAppend() bool {
 	l.circ.Append(l.d, diskEnd, newbufs)
 
 	l.memLock.Lock()
-	l.diskEnd = newDiskEnd
+	l.st.diskEnd = newDiskEnd
 	l.condLogger.Broadcast()
 	l.condInstall.Broadcast()
 

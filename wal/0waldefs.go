@@ -24,26 +24,29 @@ import (
 	"sync"
 )
 
-type Walog struct {
-	memLock *sync.Mutex
-	d       disk.Disk
-	circ    *circularAppender
-
-	condLogger  *sync.Cond
-	condInstall *sync.Cond
-
+type WalogState struct {
 	memLog      []Update // in-memory log starting with memStart
 	memStart    LogPosition
 	diskEnd     LogPosition
 	nextDiskEnd LogPosition
 
+	// For speeding up reads:
+	memLogMap map[common.Bnum]LogPosition
+}
+
+type Walog struct {
+	memLock *sync.Mutex
+	d       disk.Disk
+	circ    *circularAppender
+	st      *WalogState
+
+	condLogger  *sync.Cond
+	condInstall *sync.Cond
+
 	// For shutdown:
 	shutdown bool
 	nthread  uint64
 	condShut *sync.Cond
-
-	// For speeding up reads:
-	memLogMap map[common.Bnum]LogPosition
 }
 
 func (l *Walog) LogSz() uint64 {
