@@ -52,9 +52,9 @@ func (txn *Txn) GetTransId() TransId {
 }
 
 // Read a disk object into buf
-func (txn *Txn) Load(addr addr.Addr) *buf.Buf {
+func (txn *Txn) Load(addr addr.Addr, sz uint64) *buf.Buf {
 	blk := txn.log.Read(addr.Blkno)
-	b := buf.MkBufLoad(addr, blk)
+	b := buf.MkBufLoad(addr, sz, blk)
 	return b
 }
 
@@ -70,9 +70,9 @@ func (txn *Txn) installBufs(bufs []*buf.Buf) []wal.Update {
 	for blkno, bufs := range bufsByBlock {
 		var blk []byte
 		for _, b := range bufs {
-			if txn.fs.DiskBlockSize(b.Addr) {
+			if b.Sz == common.NBITBLOCK {
 				// overwrite complete block
-				blk = b.Blk
+				blk = b.Data
 			} else {
 				if blk == nil {
 					blk = txn.log.Read(blkno)

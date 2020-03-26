@@ -12,30 +12,30 @@ import (
 // A buf holds a disk object (inode, a bitmap bit, or disk block)
 type Buf struct {
 	Addr  addr.Addr
-	Blk   disk.Block
+	Sz    uint64 // number of bits
+	Data  []byte
 	dirty bool // has this block been written to?
 }
 
-func MkBuf(addr addr.Addr, blk disk.Block) *Buf {
-	if uint64(len(blk)) > disk.BlockSize {
-		panic("mkbuf")
-	}
+func MkBuf(addr addr.Addr, sz uint64, data []byte) *Buf {
 	b := &Buf{
 		Addr:  addr,
-		Blk:   blk,
+		Sz:    sz,
+		Data:  data,
 		dirty: false,
 	}
 	return b
 }
 
 // Load the bits of a disk block into a new buf, as specified by addr
-func MkBufLoad(addr addr.Addr, blk disk.Block) *Buf {
+func MkBufLoad(addr addr.Addr, sz uint64, blk disk.Block) *Buf {
 	bytefirst := addr.Off / 8
-	bytelast := (addr.Off + addr.Sz - 1) / 8
+	bytelast := (addr.Off + sz - 1) / 8
 	data := blk[bytefirst : bytelast+1]
 	b := &Buf{
 		Addr:  addr,
-		Blk:   data,
+		Sz:    sz,
+		Data:  data,
 		dirty: false,
 	}
 	return b
@@ -71,10 +71,10 @@ func installBytes(src []byte, dst []byte, dstoff uint64, nbit uint64) {
 // Install the bits from buf into blk.  Two cases: a bit or an inode
 func (buf *Buf) Install(blk disk.Block) {
 	util.DPrintf(1, "%v: install\n", buf.Addr)
-	if buf.Addr.Sz == 1 {
-		installBit(buf.Blk, blk, buf.Addr.Off)
-	} else if buf.Addr.Sz%8 == 0 && buf.Addr.Off%8 == 0 {
-		installBytes(buf.Blk, blk, buf.Addr.Off, buf.Addr.Sz)
+	if buf.Sz == 1 {
+		installBit(buf.Data, blk, buf.Addr.Off)
+	} else if buf.Sz%8 == 0 && buf.Addr.Off%8 == 0 {
+		installBytes(buf.Data, blk, buf.Addr.Off, buf.Sz)
 	} else {
 		panic("Install unsupported\n")
 	}
@@ -82,10 +82,11 @@ func (buf *Buf) Install(blk disk.Block) {
 }
 
 // Load the bits of a disk block into buf, as specified by addr
-func (buf *Buf) Load(blk disk.Block) {
+func (buf *Buf) Load(sz uint64, blk disk.Block) {
 	bytefirst := buf.Addr.Off / 8
-	bytelast := (buf.Addr.Off + buf.Addr.Sz - 1) / 8
-	buf.Blk = blk[bytefirst : bytelast+1]
+	bytelast := (buf.Addr.Off + sz - 1) / 8
+	buf.Sz = sz
+	buf.Data = blk[bytefirst : bytelast+1]
 }
 
 func (buf *Buf) IsDirty() bool {
@@ -98,8 +99,8 @@ func (buf *Buf) SetDirty() {
 
 func (buf *Buf) WriteDirect(d disk.Disk) {
 	buf.SetDirty()
-	if buf.Addr.Sz == disk.BlockSize {
-		d.Write(uint64(buf.Addr.Blkno), buf.Blk)
+	if buf.Sz == disk.BlockSize {
+		d.Write(uint64(buf.Addr.Blkno), buf.Data)
 	} else {
 		blk := d.Read(uint64(buf.Addr.Blkno))
 		buf.Install(blk)
@@ -108,13 +109,13 @@ func (buf *Buf) WriteDirect(d disk.Disk) {
 }
 
 func (buf *Buf) BnumGet(off uint64) common.Bnum {
-	dec := marshal.NewDec(buf.Blk[off : off+8])
+	dec := marshal.NewDec(buf.Data[off : off+8])
 	return common.Bnum(dec.GetInt())
 }
 
 func (buf *Buf) BnumPut(off uint64, v common.Bnum) {
 	enc := marshal.NewEnc(8)
 	enc.PutInt(uint64(v))
-	copy(buf.Blk[off:off+8], enc.Finish())
+	copy(buf.Data[off:off+8], enc.Finish())
 	buf.SetDirty()
 }

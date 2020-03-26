@@ -30,10 +30,10 @@ func Begin(txn *txn.Txn) *BufTxn {
 	return trans
 }
 
-func (buftxn *BufTxn) ReadBuf(addr addr.Addr) *buf.Buf {
+func (buftxn *BufTxn) ReadBuf(addr addr.Addr, sz uint64) *buf.Buf {
 	b := buftxn.bufs.Lookup(addr)
 	if b == nil {
-		buf := buftxn.txn.Load(addr)
+		buf := buftxn.txn.Load(addr, sz)
 		buftxn.bufs.Insert(buf)
 		return buftxn.bufs.Lookup(addr)
 	}
@@ -41,16 +41,16 @@ func (buftxn *BufTxn) ReadBuf(addr addr.Addr) *buf.Buf {
 }
 
 // Caller overwrites addr without reading it
-func (buftxn *BufTxn) OverWrite(addr addr.Addr, data []byte) {
+func (buftxn *BufTxn) OverWrite(addr addr.Addr, sz uint64, data []byte) {
 	var b = buftxn.bufs.Lookup(addr)
 	if b == nil {
-		b = buf.MkBuf(addr, data)
+		b = buf.MkBuf(addr, sz, data)
 		buftxn.bufs.Insert(b)
 	} else {
-		if uint64(len(data)*8) != b.Addr.Sz {
+		if sz != b.Sz {
 			panic("overwrite")
 		}
-		b.Blk = data
+		b.Data = data
 	}
 	b.SetDirty()
 }
