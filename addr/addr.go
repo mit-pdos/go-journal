@@ -12,12 +12,8 @@ type Addr struct {
 	Off   uint64 // offset in bits
 }
 
-func (a *Addr) Flatid() uint64 {
+func (a Addr) Flatid() uint64 {
 	return uint64(a.Blkno)*(disk.BlockSize*8) + a.Off
-}
-
-func (a *Addr) Eq(b Addr) bool {
-	return a.Blkno == b.Blkno && a.Off == b.Off
 }
 
 func MkAddr(blkno common.Bnum, off uint64) Addr {
