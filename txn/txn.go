@@ -124,7 +124,11 @@ func (txn *Txn) CommitWait(bufs []*buf.Buf, wait bool, id TransId) bool {
 
 // NOTE: this is coarse-grained and unattached to the transaction ID
 func (txn *Txn) Flush() bool {
-	txn.log.Flush(txn.pos)
+	txn.mu.Lock()
+	pos := txn.pos
+	txn.mu.Unlock()
+
+	txn.log.Flush(pos)
 	return true
 }
 
