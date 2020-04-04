@@ -36,14 +36,26 @@ func initCircular(d disk.Disk) *circularAppender {
 	}
 }
 
-func recoverCircular(d disk.Disk) (*circularAppender, LogPosition, LogPosition, []Update) {
-	hdr1 := d.Read(LOGHDR)
+// decodeHdr1 decodes (end, start) from hdr1
+func decodeHdr1(hdr1 disk.Block) (uint64, []uint64) {
 	dec1 := marshal.NewDec(hdr1)
 	end := dec1.GetInt()
 	addrs := dec1.GetInts(HDRADDRS)
-	hdr2 := d.Read(LOGHDR2)
+	return end, addrs
+}
+
+// decodeHdr2 reads start from hdr2
+func decodeHdr2(hdr2 disk.Block) uint64 {
 	dec2 := marshal.NewDec(hdr2)
 	start := dec2.GetInt()
+	return start
+}
+
+func recoverCircular(d disk.Disk) (*circularAppender, LogPosition, LogPosition, []Update) {
+	hdr1 := d.Read(LOGHDR)
+	hdr2 := d.Read(LOGHDR2)
+	end, addrs := decodeHdr1(hdr1)
+	start := decodeHdr2(hdr2)
 	var bufs []Update
 	for pos := start; pos < end; pos++ {
 		addr := addrs[pos%LOGSZ]
