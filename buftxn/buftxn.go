@@ -45,14 +45,15 @@ func (buftxn *BufTxn) OverWrite(addr addr.Addr, sz uint64, data []byte) {
 	var b = buftxn.bufs.Lookup(addr)
 	if b == nil {
 		b = buf.MkBuf(addr, sz, data)
+		b.SetDirty()
 		buftxn.bufs.Insert(b)
 	} else {
 		if sz != b.Sz {
 			panic("overwrite")
 		}
 		b.Data = data
+		b.SetDirty()
 	}
-	b.SetDirty()
 }
 
 func (buftxn *BufTxn) NDirty() uint64 {
