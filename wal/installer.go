@@ -6,20 +6,20 @@ import (
 	"github.com/mit-pdos/goose-nfsd/util"
 )
 
-func (ls *WalogState) cutMemLog(installEnd LogPosition) {
+func (st *WalogState) cutMemLog(installEnd LogPosition) {
 	// delete from memLogMap, if most recent version of blkno
-	for i, blk := range ls.memLog[:installEnd-ls.memStart] {
-		pos := ls.memStart + LogPosition(i)
+	for i, blk := range st.memLog[:installEnd-st.memStart] {
+		pos := st.memStart + LogPosition(i)
 		blkno := blk.Addr
-		oldPos, ok := ls.memLogMap[blkno]
+		oldPos, ok := st.memLogMap[blkno]
 		if ok && oldPos <= pos {
 			util.DPrintf(5, "memLogMap: del %d %d\n", blkno, oldPos)
-			delete(ls.memLogMap, blkno)
+			delete(st.memLogMap, blkno)
 		}
 	}
 	// shorten memLog
-	ls.memLog = ls.memLog[installEnd-ls.memStart:]
-	ls.memStart = installEnd
+	st.memLog = st.memLog[installEnd-st.memStart:]
+	st.memStart = installEnd
 }
 
 // installBlocks installs the updates in bufs to the data region
