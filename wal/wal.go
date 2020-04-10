@@ -168,7 +168,6 @@ func (l *Walog) MemAppend(bufs []Update) (LogPosition, bool) {
 			l.condLogger.Broadcast()
 			l.condLogger.Wait()
 			continue
-			// XXX this does not Goose correctly
 		}
 		txn = l.st.doMemAppend(bufs)
 		break
@@ -194,6 +193,7 @@ func (l *Walog) Flush(txn LogPosition) {
 			break
 		}
 		l.condLogger.Wait()
+		continue // TODO: without this the loop gooses incorrectly
 	}
 	l.memLock.Unlock()
 }
