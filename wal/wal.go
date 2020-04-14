@@ -99,27 +99,31 @@ func (st *WalogState) doMemAppend(bufs []Update) LogPosition {
 //  For clients of WAL
 //
 
-// Read blkno from memLog, if present
-func (l *Walog) readMemLog(blkno common.Bnum) disk.Block {
-	var blk disk.Block
+func copyUpdateBlock(u Update) disk.Block {
+	blk := make([]byte, disk.BlockSize)
+	copy(blk, u.Block)
+	return blk
+}
 
-	l.memLock.Lock()
+// readMem implements ReadMem, assuming memLock is held
+func (l *Walog) readMem(blkno common.Bnum) (disk.Block, bool) {
 	pos, ok := l.st.memLogMap[blkno]
 	if ok {
 		util.DPrintf(5, "read memLogMap: read %d pos %d\n", blkno, pos)
-		buf := l.st.memLog[pos-l.st.memStart]
-		blk = make([]byte, disk.BlockSize)
-		copy(blk, buf.Block)
+		u := l.st.memLog[pos-l.st.memStart]
+		blk := copyUpdateBlock(u)
+		return blk, true
 	}
-	l.memLock.Unlock()
-	return blk
+	return nil, false
 }
 
 // Read from only the in-memory cached state (the unstable and logged parts of
 // the wal).
 func (l *Walog) ReadMem(blkno common.Bnum) (disk.Block, bool) {
-	blk := l.readMemLog(blkno)
-	return blk, blk != nil
+	l.memLock.Lock()
+	blk, ok := l.readMem(blkno)
+	l.memLock.Unlock()
+	return blk, ok
 }
 
 // Read from only the installed state (a subset of durable state).
