@@ -145,10 +145,9 @@ func (l *Walog) Read(blkno common.Bnum) disk.Block {
 
 // Append to in-memory log.
 //
-// On success returns the txn for this append.
+// On success returns the pos for this append.
 //
-// On failure guaranteed to be idempotent (failure can occur either due to bufs
-// exceeding the size of the log or in principle due to overflowing 2^64 writes)
+// On failure guaranteed to be idempotent (failure can only occur in principle, due overflowing 2^64 writes)
 func (l *Walog) MemAppend(bufs []Update) (LogPosition, bool) {
 	if uint64(len(bufs)) > LOGSZ {
 		return 0, false
@@ -180,25 +179,26 @@ func (l *Walog) MemAppend(bufs []Update) (LogPosition, bool) {
 	return txn, ok
 }
 
-// Flush flushes a transaction (and all preceding transactions)
+// Flush flushes a transaction pos (and all preceding transactions)
 //
 // The implementation waits until the logger has appended in-memory log up to
 // txn to on-disk log.
-func (l *Walog) Flush(txn LogPosition) {
-	util.DPrintf(1, "Flush: commit till txn %d\n", txn)
+func (l *Walog) Flush(pos LogPosition) {
+	util.DPrintf(1, "Flush: commit till txn %d\n", pos)
 	l.memLock.Lock()
 	l.condLogger.Broadcast()
-	if txn > l.st.nextDiskEnd {
-		// a concurrent transaction may already committed beyond txn
+	if pos > l.st.nextDiskEnd {
+		// Get the logger to log everything written so far.
+		//
+		// This must be a transaction boundary, and this way we actually don't rely on the caller to pass a valid
+		// transaction boundary. The proof assumes this anyway for simplicity in the spec.
 		l.st.nextDiskEnd = l.st.memStart + LogPosition(len(l.st.memLog))
 	}
-	for {
-		if txn <= l.st.diskEnd {
-			break
-		}
+	for !(pos <= l.st.diskEnd) {
 		l.condLogger.Wait()
-		continue // TODO: without this the loop gooses incorrectly
 	}
+	// establishes pos <= l.st.diskEnd
+	// (pos is now durably on disk)
 	l.memLock.Unlock()
 }
 
