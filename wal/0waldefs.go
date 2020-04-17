@@ -32,6 +32,10 @@ type WalogState struct {
 
 	// For speeding up reads:
 	memLogMap map[common.Bnum]LogPosition
+
+	// For shutdown:
+	shutdown bool
+	nthread  uint64
 }
 
 type Walog struct {
@@ -44,8 +48,6 @@ type Walog struct {
 	condInstall *sync.Cond
 
 	// For shutdown:
-	shutdown bool
-	nthread  uint64
 	condShut *sync.Cond
 }
 

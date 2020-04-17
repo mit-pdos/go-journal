@@ -25,6 +25,8 @@ func mkLog(disk disk.Disk) *Walog {
 		diskEnd:     end,
 		nextDiskEnd: end,
 		memLogMap:   make(map[common.Bnum]LogPosition),
+		shutdown:    false,
+		nthread:     0,
 	}
 	l := &Walog{
 		d:           disk,
@@ -33,8 +35,6 @@ func mkLog(disk disk.Disk) *Walog {
 		st:          st,
 		condLogger:  sync.NewCond(ml),
 		condInstall: sync.NewCond(ml),
-		shutdown:    false,
-		nthread:     0,
 		condShut:    sync.NewCond(ml),
 	}
 	util.DPrintf(1, "mkLog: size %d\n", LOGSZ)
@@ -206,10 +206,10 @@ func (l *Walog) Flush(pos LogPosition) {
 func (l *Walog) Shutdown() {
 	util.DPrintf(1, "shutdown wal\n")
 	l.memLock.Lock()
-	l.shutdown = true
+	l.st.shutdown = true
 	l.condLogger.Broadcast()
 	l.condInstall.Broadcast()
-	for l.nthread > 0 {
+	for l.st.nthread > 0 {
 		util.DPrintf(1, "wait for logger/installer")
 		l.condShut.Wait()
 	}

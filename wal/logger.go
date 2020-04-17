@@ -47,15 +47,15 @@ func (l *Walog) logAppend() bool {
 // condLogger for scheduling
 func (l *Walog) logger() {
 	l.memLock.Lock()
-	l.nthread += 1
-	for !l.shutdown {
+	l.st.nthread += 1
+	for !l.st.shutdown {
 		progress := l.logAppend()
 		if !progress {
 			l.condLogger.Wait()
 		}
 	}
 	util.DPrintf(1, "logger: shutdown\n")
-	l.nthread -= 1
+	l.st.nthread -= 1
 	l.condShut.Signal()
 	l.memLock.Unlock()
 }

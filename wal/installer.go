@@ -69,8 +69,8 @@ func (l *Walog) logInstall() (uint64, LogPosition) {
 // installer installs blocks from the on-disk log to their home location.
 func (l *Walog) installer() {
 	l.memLock.Lock()
-	l.nthread += 1
-	for !l.shutdown {
+	l.st.nthread += 1
+	for !l.st.shutdown {
 		blkcount, txn := l.logInstall()
 		if blkcount > 0 {
 			util.DPrintf(5, "Installed till txn %d\n", txn)
@@ -79,7 +79,7 @@ func (l *Walog) installer() {
 		}
 	}
 	util.DPrintf(1, "installer: shutdown\n")
-	l.nthread -= 1
+	l.st.nthread -= 1
 	l.condShut.Signal()
 	l.memLock.Unlock()
 }
