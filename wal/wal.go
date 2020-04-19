@@ -95,6 +95,16 @@ func (st *WalogState) doMemAppend(bufs []Update) LogPosition {
 	return txn
 }
 
+// Grab all of the current transactions and record them for the next group commit (when the logger gets around to it).
+//
+// This is a separate function purely for verification purposes; the code isn't complicated but we have to manipulate
+// some ghost state and justify this value of nextDiskEnd.
+//
+// Assumes caller holds memLock.
+func (st *WalogState) endGroupTxn() {
+	st.nextDiskEnd = st.memStart + LogPosition(len(st.memLog))
+}
+
 //
 //  For clients of WAL
 //
@@ -106,11 +116,11 @@ func copyUpdateBlock(u Update) disk.Block {
 }
 
 // readMem implements ReadMem, assuming memLock is held
-func (l *Walog) readMem(blkno common.Bnum) (disk.Block, bool) {
-	pos, ok := l.st.memLogMap[blkno]
+func (st *WalogState) readMem(blkno common.Bnum) (disk.Block, bool) {
+	pos, ok := st.memLogMap[blkno]
 	if ok {
 		util.DPrintf(5, "read memLogMap: read %d pos %d\n", blkno, pos)
-		u := l.st.memLog[pos-l.st.memStart]
+		u := st.memLog[pos-st.memStart]
 		blk := copyUpdateBlock(u)
 		return blk, true
 	}
@@ -121,7 +131,7 @@ func (l *Walog) readMem(blkno common.Bnum) (disk.Block, bool) {
 // the wal).
 func (l *Walog) ReadMem(blkno common.Bnum) (disk.Block, bool) {
 	l.memLock.Lock()
-	blk, ok := l.readMem(blkno)
+	blk, ok := l.st.readMem(blkno)
 	l.memLock.Unlock()
 	return blk, ok
 }
@@ -167,7 +177,7 @@ func (l *Walog) MemAppend(bufs []Update) (LogPosition, bool) {
 		if memSize+uint64(len(bufs)) > LOGSZ {
 			util.DPrintf(5, "memAppend: log is full; try again")
 			// commit everything, stable and unstable trans
-			l.st.nextDiskEnd = l.st.memStart + LogPosition(len(l.st.memLog))
+			l.st.endGroupTxn()
 			l.condLogger.Broadcast()
 			l.condLogger.Wait()
 			continue
@@ -192,7 +202,7 @@ func (l *Walog) Flush(pos LogPosition) {
 		//
 		// This must be a transaction boundary, and this way we actually don't rely on the caller to pass a valid
 		// transaction boundary. The proof assumes this anyway for simplicity in the spec.
-		l.st.nextDiskEnd = l.st.memStart + LogPosition(len(l.st.memLog))
+		l.st.endGroupTxn()
 	}
 	for !(pos <= l.st.diskEnd) {
 		l.condLogger.Wait()
