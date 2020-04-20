@@ -6,6 +6,11 @@ import (
 	"github.com/mit-pdos/goose-nfsd/util"
 )
 
+// cutMemLog deletes from the memLog through installEnd, after these blocks have
+// been installed. This transitions from a state where the on-disk install point
+// is already at installEnd, but memStart < installEnd.
+//
+// Assumes caller holds memLock
 func (st *WalogState) cutMemLog(installEnd LogPosition) {
 	// delete from memLogMap, if most recent version of blkno
 	for i, blk := range st.memLog[:installEnd-st.memStart] {
