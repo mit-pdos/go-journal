@@ -1,6 +1,7 @@
 package wal
 
 import (
+	"github.com/tchajed/goose/machine"
 	"sync"
 
 	"github.com/tchajed/goose/machine/disk"
@@ -207,6 +208,7 @@ func (l *Walog) Flush(pos LogPosition) {
 	for !(pos <= l.st.diskEnd) {
 		l.condLogger.Wait()
 	}
+	machine.Linearize()
 	// establishes pos <= l.st.diskEnd
 	// (pos is now durably on disk)
 	l.memLock.Unlock()
