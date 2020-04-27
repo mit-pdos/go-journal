@@ -158,7 +158,8 @@ func (l *Walog) Read(blkno common.Bnum) disk.Block {
 //
 // On success returns the pos for this append.
 //
-// On failure guaranteed to be idempotent (failure can only occur in principle, due overflowing 2^64 writes)
+// On failure guaranteed to be idempotent (failure can only occur in principle,
+// due overflowing 2^64 writes)
 func (l *Walog) MemAppend(bufs []Update) (LogPosition, bool) {
 	if uint64(len(bufs)) > LOGSZ {
 		return 0, false
