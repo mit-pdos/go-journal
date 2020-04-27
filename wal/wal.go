@@ -133,6 +133,7 @@ func (st *WalogState) readMem(blkno common.Bnum) (disk.Block, bool) {
 func (l *Walog) ReadMem(blkno common.Bnum) (disk.Block, bool) {
 	l.memLock.Lock()
 	blk, ok := l.st.readMem(blkno)
+	machine.Linearize()
 	l.memLock.Unlock()
 	return blk, ok
 }
