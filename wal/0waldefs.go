@@ -44,6 +44,10 @@ func (st *WalogState) diskEnd() LogPosition {
 	return st.memStart + LogPosition(len(st.diskLog))
 }
 
+func (st *WalogState) memEnd() LogPosition {
+	return st.diskEnd() + LogPosition(len(st.memLog))
+}
+
 type Walog struct {
 	memLock *sync.Mutex
 	d       disk.Disk

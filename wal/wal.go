@@ -66,7 +66,7 @@ func MkLog(disk disk.Disk) *Walog {
 // Assumes caller holds memLock
 func (st *WalogState) memWrite(bufs []Update) {
 	diskEnd := st.diskEnd()
-	var pos = st.currentPos()
+	var pos = st.memEnd()
 	for _, buf := range bufs {
 		// remember most recent position for Blkno
 		oldpos, ok := st.memLogMap[buf.Addr]
@@ -98,10 +98,6 @@ func (st *WalogState) doMemAppend(bufs []Update) LogPosition {
 	return txn
 }
 
-func (st *WalogState) currentPos() LogPosition {
-	return st.diskEnd() + LogPosition(len(st.memLog))
-}
-
 // Grab all of the current transactions and record them for the next group commit (when the logger gets around to it).
 //
 // This is a separate function purely for verification purposes; the code isn't complicated but we have to manipulate
@@ -109,7 +105,7 @@ func (st *WalogState) currentPos() LogPosition {
 //
 // Assumes caller holds memLock.
 func (st *WalogState) endGroupTxn() {
-	st.nextDiskEnd = st.currentPos()
+	st.nextDiskEnd = st.memEnd()
 }
 
 //
@@ -187,7 +183,7 @@ func (l *Walog) MemAppend(bufs []Update) (LogPosition, bool) {
 			break
 		}
 		// TODO: relate this calculation to the circular log free space
-		memEnd := l.st.currentPos()
+		memEnd := l.st.memEnd()
 		memSize := uint64(memEnd) - uint64(l.st.diskEnd())
 		if memSize+uint64(len(bufs)) > LOGSZ {
 			util.DPrintf(5, "memAppend: log is full; try again")
