@@ -1,6 +1,8 @@
 package util
 
-import "log"
+import (
+	"log"
+)
 
 const Debug uint64 = 0
 
@@ -29,4 +31,10 @@ func SumOverflows(n uint64, m uint64) bool {
 
 func SumOverflows32(n uint32, m uint32) bool {
 	return n+m < n
+}
+
+func CloneByteSlice(s []byte) []byte {
+	s2 := make([]byte, len(s))
+	copy(s2, s)
+	return s2
 }
