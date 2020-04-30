@@ -1,8 +1,9 @@
 package wal
 
 import (
-	"github.com/tchajed/goose/machine"
 	"sync"
+
+	"github.com/tchajed/goose/machine"
 
 	"github.com/tchajed/goose/machine/disk"
 
@@ -11,19 +12,22 @@ import (
 )
 
 func (l *Walog) recover() {
-	util.DPrintf(1, "recover %d %d\n", l.st.memStart, l.st.diskEnd)
-	for i, buf := range l.st.memLog {
+	util.DPrintf(1, "recover %d %d\n", l.st.memStart, l.st.diskEnd())
+	for i, buf := range l.st.diskLog {
 		l.st.memLogMap[buf.Addr] = l.st.memStart + LogPosition(i)
+	}
+	for i, buf := range l.st.memLog {
+		l.st.memLogMap[buf.Addr] = l.st.diskEnd() + LogPosition(i)
 	}
 }
 
 func mkLog(disk disk.Disk) *Walog {
-	circ, start, end, memLog := recoverCircular(disk)
+	circ, start, end, memLog2 := recoverCircular(disk)
 	ml := new(sync.Mutex)
 	st := &WalogState{
-		memLog:      memLog,
+		diskLog:     nil,
+		memLog:      memLog2,
 		memStart:    start,
-		diskEnd:     end,
 		nextDiskEnd: end,
 		memLogMap:   make(map[common.Bnum]LogPosition),
 		shutdown:    false,
@@ -61,17 +65,15 @@ func MkLog(disk disk.Disk) *Walog {
 //
 // Assumes caller holds memLock
 func (st *WalogState) memWrite(bufs []Update) {
-	var pos = st.memStart + LogPosition(len(st.memLog))
+	diskEnd := st.diskEnd()
+	var pos = st.currentPos()
 	for _, buf := range bufs {
 		// remember most recent position for Blkno
 		oldpos, ok := st.memLogMap[buf.Addr]
 		if ok && oldpos >= st.nextDiskEnd {
 			util.DPrintf(5, "memWrite: absorb %d pos %d old %d\n",
 				buf.Addr, pos, oldpos)
-			// the ownership of this part of the memLog is complicated; maybe the
-			// logger and installer don't ever take ownership of it, which is why
-			// it's safe to write here?
-			st.memLog[oldpos-st.memStart] = buf
+			st.memLog[oldpos-diskEnd] = buf
 			// note that pos does not need to be incremented
 		} else {
 			if ok {
@@ -92,8 +94,12 @@ func (st *WalogState) memWrite(bufs []Update) {
 // Assumes caller holds memLock
 func (st *WalogState) doMemAppend(bufs []Update) LogPosition {
 	st.memWrite(bufs)
-	txn := st.memStart + LogPosition(len(st.memLog))
+	txn := st.diskEnd() + LogPosition(len(st.memLog))
 	return txn
+}
+
+func (st *WalogState) currentPos() LogPosition {
+	return st.diskEnd() + LogPosition(len(st.memLog))
 }
 
 // Grab all of the current transactions and record them for the next group commit (when the logger gets around to it).
@@ -103,7 +109,7 @@ func (st *WalogState) doMemAppend(bufs []Update) LogPosition {
 //
 // Assumes caller holds memLock.
 func (st *WalogState) endGroupTxn() {
-	st.nextDiskEnd = st.memStart + LogPosition(len(st.memLog))
+	st.nextDiskEnd = st.currentPos()
 }
 
 //
@@ -121,7 +127,13 @@ func (st *WalogState) readMem(blkno common.Bnum) (disk.Block, bool) {
 	pos, ok := st.memLogMap[blkno]
 	if ok {
 		util.DPrintf(5, "read memLogMap: read %d pos %d\n", blkno, pos)
-		u := st.memLog[pos-st.memStart]
+		diskEnd := st.diskEnd()
+		var u Update
+		if pos >= diskEnd {
+			u = st.memLog[pos-diskEnd]
+		} else {
+			u = st.diskLog[pos-st.memStart]
+		}
 		blk := copyUpdateBlock(u)
 		return blk, true
 	}
@@ -175,8 +187,8 @@ func (l *Walog) MemAppend(bufs []Update) (LogPosition, bool) {
 			break
 		}
 		// TODO: relate this calculation to the circular log free space
-		memEnd := LogPosition(uint64(l.st.memStart) + uint64(len(l.st.memLog)))
-		memSize := uint64(memEnd) - uint64(l.st.diskEnd)
+		memEnd := l.st.currentPos()
+		memSize := uint64(memEnd) - uint64(l.st.diskEnd())
 		if memSize+uint64(len(bufs)) > LOGSZ {
 			util.DPrintf(5, "memAppend: log is full; try again")
 			// commit everything, stable and unstable trans
@@ -207,7 +219,7 @@ func (l *Walog) Flush(pos LogPosition) {
 		// transaction boundary. The proof assumes this anyway for simplicity in the spec.
 		l.st.endGroupTxn()
 	}
-	for !(pos <= l.st.diskEnd) {
+	for !(pos <= l.st.diskEnd()) {
 		l.condLogger.Wait()
 	}
 	machine.Linearize()
