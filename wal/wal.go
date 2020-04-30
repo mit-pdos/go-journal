@@ -113,9 +113,7 @@ func (st *WalogState) endGroupTxn() {
 //
 
 func copyUpdateBlock(u Update) disk.Block {
-	blk := make([]byte, disk.BlockSize)
-	copy(blk, u.Block)
-	return blk
+	return util.CloneByteSlice(u.Block)
 }
 
 // readMem implements ReadMem, assuming memLock is held
