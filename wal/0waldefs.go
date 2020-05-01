@@ -25,12 +25,10 @@ import (
 )
 
 type WalogState struct {
-	diskLog     []Update    // cache of on-disk log starting with memStart
-	memLog      []Update    // in-memory log starting after diskLog
-	memStart    LogPosition // the start position of diskLog
-	nextDiskEnd LogPosition // the absorption boundary
-	// updates above nextDiskEnd can be absorbed,
-	// while below and equal are owned by the logger and installer
+	memLog      []Update // in-memory log starting with memStart
+	memStart    LogPosition
+	diskEnd     LogPosition
+	nextDiskEnd LogPosition
 
 	// For speeding up reads:
 	memLogMap map[common.Bnum]LogPosition
@@ -40,12 +38,8 @@ type WalogState struct {
 	nthread  uint64
 }
 
-func (st *WalogState) diskEnd() LogPosition {
-	return st.memStart + LogPosition(len(st.diskLog))
-}
-
 func (st *WalogState) memEnd() LogPosition {
-	return st.diskEnd() + LogPosition(len(st.memLog))
+	return st.memStart + LogPosition(len(st.memLog))
 }
 
 type Walog struct {

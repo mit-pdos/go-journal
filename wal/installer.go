@@ -6,14 +6,14 @@ import (
 	"github.com/mit-pdos/goose-nfsd/util"
 )
 
-// cutDiskLog deletes the diskLog through installEnd, after these blocks have
+// cutMemLog deletes from the memLog through installEnd, after these blocks have
 // been installed. This transitions from a state where the on-disk install point
 // is already at installEnd, but memStart < installEnd.
 //
 // Assumes caller holds memLock
-func (st *WalogState) cutDiskLog(installEnd LogPosition) {
+func (st *WalogState) cutMemLog(installEnd LogPosition) {
 	// delete from memLogMap, if most recent version of blkno
-	for i, blk := range st.diskLog[:installEnd-st.memStart] {
+	for i, blk := range st.memLog[:installEnd-st.memStart] {
 		pos := st.memStart + LogPosition(i)
 		blkno := blk.Addr
 		oldPos, ok := st.memLogMap[blkno]
@@ -22,8 +22,8 @@ func (st *WalogState) cutDiskLog(installEnd LogPosition) {
 			delete(st.memLogMap, blkno)
 		}
 	}
-	// shorten diskLog
-	st.diskLog = st.diskLog[installEnd-st.memStart:]
+	// shorten memLog
+	st.memLog = st.memLog[installEnd-st.memStart:]
 	st.memStart = installEnd
 }
 
@@ -52,8 +52,8 @@ func installBlocks(d disk.Disk, bufs []Update) {
 //
 // Installer holds memLock
 func (l *Walog) logInstall() (uint64, LogPosition) {
-	installEnd := l.st.diskEnd()
-	bufs := l.st.diskLog
+	installEnd := l.st.diskEnd
+	bufs := l.st.memLog[:installEnd-l.st.memStart]
 	if len(bufs) == 0 {
 		return 0, installEnd
 	}
@@ -65,7 +65,7 @@ func (l *Walog) logInstall() (uint64, LogPosition) {
 	Advance(l.d, installEnd)
 
 	l.memLock.Lock()
-	l.st.cutDiskLog(installEnd)
+	l.st.cutMemLog(installEnd)
 	l.condInstall.Broadcast()
 
 	return uint64(len(bufs)), installEnd
