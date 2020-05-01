@@ -65,18 +65,19 @@ func (txn *Txn) installBufsMap(bufs []*buf.Buf) map[common.Bnum][]byte {
 	blks := make(map[common.Bnum][]byte)
 
 	for _, b := range bufs {
-		var blk []byte
 		if b.Sz == common.NBITBLOCK {
-			blk = b.Data
+			blks[b.Addr.Blkno] = b.Data
 		} else {
-			var ok bool
-			blk, ok = blks[b.Addr.Blkno]
-			if !ok {
+			var blk []byte
+			mapblk, ok := blks[b.Addr.Blkno]
+			if ok {
+				blk = mapblk
+			} else {
 				blk = txn.log.Read(b.Addr.Blkno)
+				blks[b.Addr.Blkno] = blk
 			}
 			b.Install(blk)
 		}
-		blks[b.Addr.Blkno] = blk
 	}
 
 	return blks
