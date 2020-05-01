@@ -61,27 +61,32 @@ func (txn *Txn) Load(addr addr.Addr, sz uint64) *buf.Buf {
 // Installs the txn's bufs into their blocks and returns the blocks.
 // A buf may only partially update a disk block and several bufs may
 // apply to the same disk block. Assume caller holds commit lock.
-func (txn *Txn) installBufs(bufs []*buf.Buf) []wal.Update {
-	var blks = make([]wal.Update, 0)
-	var bufsByBlock = make(map[common.Bnum][]*buf.Buf)
+func (txn *Txn) installBufsMap(bufs []*buf.Buf) map[common.Bnum][]byte {
+	blks := make(map[common.Bnum][]byte)
+
 	for _, b := range bufs {
-		bufsByBlock[b.Addr.Blkno] = append(bufsByBlock[b.Addr.Blkno], b)
-	}
-	for blkno, bufs := range bufsByBlock {
 		var blk []byte
-		for _, b := range bufs {
-			if b.Sz == common.NBITBLOCK {
-				// overwrite complete block
-				blk = b.Data
-			} else {
-				if blk == nil {
-					blk = txn.log.Read(blkno)
-				}
-				b.Install(blk)
+		if b.Sz == common.NBITBLOCK {
+			blk = b.Data
+		} else {
+			var ok bool
+			blk, ok = blks[b.Addr.Blkno]
+			if !ok {
+				blk = txn.log.Read(b.Addr.Blkno)
 			}
+			b.Install(blk)
 		}
-		walblk := wal.MkBlockData(blkno, blk)
-		blks = append(blks, walblk)
+		blks[b.Addr.Blkno] = blk
+	}
+
+	return blks
+}
+
+func (txn *Txn) installBufs(bufs []*buf.Buf) []wal.Update {
+	var blks []wal.Update
+	bufmap := txn.installBufsMap(bufs)
+	for blkno, data := range bufmap {
+		blks = append(blks, wal.MkBlockData(blkno, data))
 	}
 	return blks
 }
