@@ -154,6 +154,19 @@ func (l *Walog) Read(blkno common.Bnum) disk.Block {
 	return l.ReadInstalled(blkno)
 }
 
+func (st *WalogState) updatesOverflowU64(newUpdates uint64) bool {
+	return util.SumOverflows(uint64(st.memEnd()), newUpdates)
+}
+
+// TODO: relate this calculation to the circular log free space
+func (st *WalogState) memLogHasSpace(newUpdates uint64) bool {
+	memSize := uint64(st.memEnd() - st.diskEnd)
+	if memSize+newUpdates > LOGSZ {
+		return false
+	}
+	return true
+}
+
 // Append to in-memory log.
 //
 // On success returns the pos for this append.
@@ -168,23 +181,23 @@ func (l *Walog) MemAppend(bufs []Update) (LogPosition, bool) {
 	var txn LogPosition = 0
 	var ok = true
 	l.memLock.Lock()
+	st := l.st
 	for {
-		if util.SumOverflows(uint64(l.st.memStart), uint64(len(bufs))) {
+		if st.updatesOverflowU64(uint64(len(bufs))) {
 			ok = false
 			break
 		}
-		// TODO: relate this calculation to the circular log free space
-		memSize := uint64(l.st.memEnd() - l.st.diskEnd)
-		if memSize+uint64(len(bufs)) > LOGSZ {
+		if st.memLogHasSpace(uint64(len(bufs))) {
+			txn = st.doMemAppend(bufs)
+			break
+		} else {
 			util.DPrintf(5, "memAppend: log is full; try again")
 			// commit everything, stable and unstable trans
-			l.st.endGroupTxn()
+			st.endGroupTxn()
 			l.condLogger.Broadcast()
 			l.condLogger.Wait()
 			continue
 		}
-		txn = l.st.doMemAppend(bufs)
-		break
 	}
 	l.memLock.Unlock()
 	return txn, ok
