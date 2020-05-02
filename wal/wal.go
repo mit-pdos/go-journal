@@ -190,14 +190,13 @@ func (l *Walog) MemAppend(bufs []Update) (LogPosition, bool) {
 		if st.memLogHasSpace(uint64(len(bufs))) {
 			txn = st.doMemAppend(bufs)
 			break
-		} else {
-			util.DPrintf(5, "memAppend: log is full; try again")
-			// commit everything, stable and unstable trans
-			st.endGroupTxn()
-			l.condLogger.Broadcast()
-			l.condLogger.Wait()
-			continue
 		}
+		util.DPrintf(5, "memAppend: log is full; try again")
+		// commit everything, stable and unstable trans
+		st.endGroupTxn()
+		l.condLogger.Broadcast()
+		l.condLogger.Wait()
+		continue
 	}
 	l.memLock.Unlock()
 	return txn, ok
