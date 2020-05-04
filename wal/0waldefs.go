@@ -28,9 +28,6 @@ type WalogState struct {
 	memLog  *sliding
 	diskEnd LogPosition
 
-	// For speeding up reads:
-	memLogMap map[common.Bnum]LogPosition
-
 	// For shutdown:
 	shutdown bool
 	nthread  uint64

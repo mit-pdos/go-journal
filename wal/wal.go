@@ -11,22 +11,14 @@ import (
 	"github.com/mit-pdos/goose-nfsd/util"
 )
 
-func (l *Walog) recover() {
-	util.DPrintf(1, "recover %d %d\n", l.st.memLog.start, l.st.diskEnd)
-	for i, buf := range l.st.memLog.log {
-		l.st.memLogMap[buf.Addr] = l.st.memLog.start + LogPosition(i)
-	}
-}
-
 func mkLog(disk disk.Disk) *Walog {
 	circ, start, end, memLog := recoverCircular(disk)
 	ml := new(sync.Mutex)
 	st := &WalogState{
-		memLog:    &sliding{log: memLog, start: start, mutable: end},
-		diskEnd:   end,
-		memLogMap: make(map[common.Bnum]LogPosition),
-		shutdown:  false,
-		nthread:   0,
+		memLog:   mkSliding(memLog, start),
+		diskEnd:  end,
+		shutdown: false,
+		nthread:  0,
 	}
 	l := &Walog{
 		d:           disk,
@@ -38,7 +30,6 @@ func mkLog(disk disk.Disk) *Walog {
 		condShut:    sync.NewCond(ml),
 	}
 	util.DPrintf(1, "mkLog: size %d\n", LOGSZ)
-	l.recover()
 	return l
 }
 
@@ -63,7 +54,7 @@ func (st *WalogState) memWrite(bufs []Update) {
 	var pos = st.memLog.end()
 	for _, buf := range bufs {
 		// remember most recent position for Blkno
-		oldpos, ok := st.memLogMap[buf.Addr]
+		oldpos, ok := st.memLog.posForAddr(buf.Addr)
 		if ok && oldpos >= st.memLog.mutable {
 			util.DPrintf(5, "memWrite: absorb %d pos %d old %d\n",
 				buf.Addr, pos, oldpos)
@@ -81,7 +72,6 @@ func (st *WalogState) memWrite(bufs []Update) {
 					buf.Addr, pos)
 			}
 			st.memLog.append(buf)
-			st.memLogMap[buf.Addr] = pos
 			pos += 1
 		}
 	}
@@ -115,7 +105,7 @@ func copyUpdateBlock(u Update) disk.Block {
 
 // readMem implements ReadMem, assuming memLock is held
 func (st *WalogState) readMem(blkno common.Bnum) (disk.Block, bool) {
-	pos, ok := st.memLogMap[blkno]
+	pos, ok := st.memLog.posForAddr(blkno)
 	if ok {
 		util.DPrintf(5, "read memLogMap: read %d pos %d\n", blkno, pos)
 		u := st.memLog.get(pos)

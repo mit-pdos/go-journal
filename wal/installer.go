@@ -12,17 +12,6 @@ import (
 //
 // Assumes caller holds memLock
 func (st *WalogState) cutMemLog(installEnd LogPosition) {
-	// delete from memLogMap, if most recent version of blkno
-	for i, blk := range st.memLog.takeTill(installEnd) {
-		pos := st.memLog.start + LogPosition(i)
-		blkno := blk.Addr
-		oldPos, ok := st.memLogMap[blkno]
-		if ok && oldPos <= pos {
-			util.DPrintf(5, "memLogMap: del %d %d\n", blkno, oldPos)
-			delete(st.memLogMap, blkno)
-		}
-	}
-	// shorten memLog
 	st.memLog.deleteFrom(installEnd)
 }
 
