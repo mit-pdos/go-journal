@@ -25,10 +25,8 @@ import (
 )
 
 type WalogState struct {
-	memLog      []Update // in-memory log starting with memStart
-	memStart    LogPosition
-	diskEnd     LogPosition
-	nextDiskEnd LogPosition
+	memLog  *sliding
+	diskEnd LogPosition
 
 	// For speeding up reads:
 	memLogMap map[common.Bnum]LogPosition
@@ -39,7 +37,7 @@ type WalogState struct {
 }
 
 func (st *WalogState) memEnd() LogPosition {
-	return st.memStart + LogPosition(len(st.memLog))
+	return st.memLog.end()
 }
 
 type Walog struct {

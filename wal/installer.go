@@ -13,8 +13,8 @@ import (
 // Assumes caller holds memLock
 func (st *WalogState) cutMemLog(installEnd LogPosition) {
 	// delete from memLogMap, if most recent version of blkno
-	for i, blk := range st.memLog[:installEnd-st.memStart] {
-		pos := st.memStart + LogPosition(i)
+	for i, blk := range st.memLog.takeTill(installEnd) {
+		pos := st.memLog.start + LogPosition(i)
 		blkno := blk.Addr
 		oldPos, ok := st.memLogMap[blkno]
 		if ok && oldPos <= pos {
@@ -23,8 +23,7 @@ func (st *WalogState) cutMemLog(installEnd LogPosition) {
 		}
 	}
 	// shorten memLog
-	st.memLog = st.memLog[installEnd-st.memStart:]
-	st.memStart = installEnd
+	st.memLog.deleteFrom(installEnd)
 }
 
 // installBlocks installs the updates in bufs to the data region
@@ -53,7 +52,7 @@ func installBlocks(d disk.Disk, bufs []Update) {
 // Installer holds memLock
 func (l *Walog) logInstall() (uint64, LogPosition) {
 	installEnd := l.st.diskEnd
-	bufs := l.st.memLog[:installEnd-l.st.memStart]
+	bufs := l.st.memLog.takeTill(installEnd)
 	if len(bufs) == 0 {
 		return 0, installEnd
 	}
