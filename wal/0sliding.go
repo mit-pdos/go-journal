@@ -35,7 +35,7 @@ func (s *sliding) get(pos LogPosition) Update {
 
 // update does an in-place absorb of an update to u
 func (s *sliding) update(pos LogPosition, u Update) {
-	s.log[pos-s.start] = u
+	s.log[s.mutable-s.start:][pos-s.mutable] = u
 }
 
 func (s *sliding) append(u Update) {
