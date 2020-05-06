@@ -4,6 +4,18 @@ import (
 	"github.com/mit-pdos/goose-nfsd/util"
 )
 
+// Waits on the installer thread to free space in the log so everything
+// logged fits on disk.
+//
+// establishes uint64(len(l.memLog)) <= LOGSZ
+func (l *Walog) waitForSpace() {
+	// Wait until there is sufficient space on disk for the entire
+	// in-memory log (i.e., the installer must catch up).
+	for uint64(len(l.st.memLog.log)) > LOGSZ {
+		l.condInstall.Wait()
+	}
+}
+
 // logAppend appends to the log, if it can find transactions to append.
 //
 // It grabs the new writes in memory and not on disk through l.nextDiskEnd; if
@@ -14,12 +26,7 @@ import (
 // Returns true if it made progress (for liveness, not important for
 // correctness).
 func (l *Walog) logAppend() bool {
-	// Wait until there is sufficient space on disk for the entire
-	// in-memory log (i.e., the installer must catch up).
-	for uint64(len(l.st.memLog.log)) > LOGSZ {
-		l.condInstall.Wait()
-	}
-	// establishes uint64(len(l.memLog)) <= LOGSZ
+	l.waitForSpace()
 
 	diskEnd := l.st.diskEnd
 	newbufs := l.st.memLog.takeFrom(diskEnd)
