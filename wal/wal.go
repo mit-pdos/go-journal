@@ -11,24 +11,14 @@ import (
 	"github.com/mit-pdos/goose-nfsd/util"
 )
 
-func (l *Walog) recover() {
-	util.DPrintf(1, "recover %d %d\n", l.st.memStart, l.st.diskEnd)
-	for i, buf := range l.st.memLog {
-		l.st.memLogMap[buf.Addr] = l.st.memStart + LogPosition(i)
-	}
-}
-
 func mkLog(disk disk.Disk) *Walog {
 	circ, start, end, memLog := recoverCircular(disk)
 	ml := new(sync.Mutex)
 	st := &WalogState{
-		memLog:      memLog,
-		memStart:    start,
-		diskEnd:     end,
-		nextDiskEnd: end,
-		memLogMap:   make(map[common.Bnum]LogPosition),
-		shutdown:    false,
-		nthread:     0,
+		memLog:   mkSliding(memLog, start),
+		diskEnd:  end,
+		shutdown: false,
+		nthread:  0,
 	}
 	l := &Walog{
 		d:           disk,
@@ -40,7 +30,6 @@ func mkLog(disk disk.Disk) *Walog {
 		condShut:    sync.NewCond(ml),
 	}
 	util.DPrintf(1, "mkLog: size %d\n", LOGSZ)
-	l.recover()
 	return l
 }
 
@@ -62,17 +51,17 @@ func MkLog(disk disk.Disk) *Walog {
 //
 // Assumes caller holds memLock
 func (st *WalogState) memWrite(bufs []Update) {
-	var pos = st.memStart + LogPosition(len(st.memLog))
+	var pos = st.memLog.end()
 	for _, buf := range bufs {
 		// remember most recent position for Blkno
-		oldpos, ok := st.memLogMap[buf.Addr]
-		if ok && oldpos >= st.nextDiskEnd {
+		oldpos, ok := st.memLog.posForAddr(buf.Addr)
+		if ok && oldpos >= st.memLog.mutable {
 			util.DPrintf(5, "memWrite: absorb %d pos %d old %d\n",
 				buf.Addr, pos, oldpos)
 			// the ownership of this part of the memLog is complicated; maybe the
 			// logger and installer don't ever take ownership of it, which is why
 			// it's safe to write here?
-			st.memLog[oldpos-st.memStart] = buf
+			st.memLog.update(oldpos, buf)
 			// note that pos does not need to be incremented
 		} else {
 			if ok {
@@ -82,8 +71,7 @@ func (st *WalogState) memWrite(bufs []Update) {
 				util.DPrintf(5, "memLogMap: add %d pos %d\n",
 					buf.Addr, pos)
 			}
-			st.memLog = append(st.memLog, buf)
-			st.memLogMap[buf.Addr] = pos
+			st.memLog.append(buf)
 			pos += 1
 		}
 	}
@@ -93,7 +81,7 @@ func (st *WalogState) memWrite(bufs []Update) {
 // Assumes caller holds memLock
 func (st *WalogState) doMemAppend(bufs []Update) LogPosition {
 	st.memWrite(bufs)
-	txn := st.memStart + LogPosition(len(st.memLog))
+	txn := st.memLog.end()
 	return txn
 }
 
@@ -104,7 +92,7 @@ func (st *WalogState) doMemAppend(bufs []Update) LogPosition {
 //
 // Assumes caller holds memLock.
 func (st *WalogState) endGroupTxn() {
-	st.nextDiskEnd = st.memEnd()
+	st.memLog.clearMutable()
 }
 
 //
@@ -117,10 +105,10 @@ func copyUpdateBlock(u Update) disk.Block {
 
 // readMem implements ReadMem, assuming memLock is held
 func (st *WalogState) readMem(blkno common.Bnum) (disk.Block, bool) {
-	pos, ok := st.memLogMap[blkno]
+	pos, ok := st.memLog.posForAddr(blkno)
 	if ok {
 		util.DPrintf(5, "read memLogMap: read %d pos %d\n", blkno, pos)
-		u := st.memLog[pos-st.memStart]
+		u := st.memLog.get(pos)
 		blk := copyUpdateBlock(u)
 		return blk, true
 	}
@@ -210,7 +198,7 @@ func (l *Walog) Flush(pos LogPosition) {
 	util.DPrintf(1, "Flush: commit till txn %d\n", pos)
 	l.memLock.Lock()
 	l.condLogger.Broadcast()
-	if pos > l.st.nextDiskEnd {
+	if pos > l.st.memLog.mutable {
 		// Get the logger to log everything written so far.
 		//
 		// This must be a transaction boundary, and this way we actually don't rely on the caller to pass a valid
