@@ -35,7 +35,7 @@ func (l logWrapper) logOnce() {
 	progress := false
 	for !progress {
 		l.Walog.memLock.Lock()
-		progress = l.logAppend()
+		progress = l.logAppend(l.circ)
 		l.Walog.memLock.Unlock()
 	}
 }
