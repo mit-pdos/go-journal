@@ -50,18 +50,19 @@ func MkLog(disk disk.Disk) *Walog {
 // the process of being logged or installed).
 //
 // Assumes caller holds memLock
-func (st *WalogState) memWrite(bufs []Update) {
-	var pos = st.memLog.end()
+func memWrite(memLog *sliding, bufs []Update) {
+	// pos is only for debugging
+	var pos = memLog.end()
 	for _, buf := range bufs {
 		// remember most recent position for Blkno
-		oldpos, ok := st.memLog.posForAddr(buf.Addr)
-		if ok && oldpos >= st.memLog.mutable {
+		oldpos, ok := memLog.posForAddr(buf.Addr)
+		if ok && oldpos >= memLog.mutable {
 			util.DPrintf(5, "memWrite: absorb %d pos %d old %d\n",
 				buf.Addr, pos, oldpos)
 			// the ownership of this part of the memLog is complicated; maybe the
 			// logger and installer don't ever take ownership of it, which is why
 			// it's safe to write here?
-			st.memLog.update(oldpos, buf)
+			memLog.update(oldpos, buf)
 			// note that pos does not need to be incremented
 		} else {
 			if ok {
@@ -71,7 +72,7 @@ func (st *WalogState) memWrite(bufs []Update) {
 				util.DPrintf(5, "memLogMap: add %d pos %d\n",
 					buf.Addr, pos)
 			}
-			st.memLog.append(buf)
+			memLog.append(buf)
 			pos += 1
 		}
 	}
@@ -79,9 +80,9 @@ func (st *WalogState) memWrite(bufs []Update) {
 }
 
 // Assumes caller holds memLock
-func (st *WalogState) doMemAppend(bufs []Update) LogPosition {
-	st.memWrite(bufs)
-	txn := st.memLog.end()
+func doMemAppend(memLog *sliding, bufs []Update) LogPosition {
+	memWrite(memLog, bufs)
+	txn := memLog.end()
 	return txn
 }
 
@@ -176,7 +177,7 @@ func (l *Walog) MemAppend(bufs []Update) (LogPosition, bool) {
 			break
 		}
 		if st.memLogHasSpace(uint64(len(bufs))) {
-			txn = st.doMemAppend(bufs)
+			txn = doMemAppend(st.memLog, bufs)
 			break
 		}
 		util.DPrintf(5, "memAppend: log is full; try again")
