@@ -44,44 +44,9 @@ func MkLog(disk disk.Disk) *Walog {
 	return l
 }
 
-// memWrite writes out bufs to the in-memory log
-//
-// Absorbs writes in in-memory transactions (avoiding those that might be in
-// the process of being logged or installed).
-//
-// Assumes caller holds memLock
-func memWrite(memLog *sliding, bufs []Update) {
-	// pos is only for debugging
-	var pos = memLog.end()
-	for _, buf := range bufs {
-		// remember most recent position for Blkno
-		oldpos, ok := memLog.posForAddr(buf.Addr)
-		if ok && oldpos >= memLog.mutable {
-			util.DPrintf(5, "memWrite: absorb %d pos %d old %d\n",
-				buf.Addr, pos, oldpos)
-			// the ownership of this part of the memLog is complicated; maybe the
-			// logger and installer don't ever take ownership of it, which is why
-			// it's safe to write here?
-			memLog.update(oldpos, buf)
-			// note that pos does not need to be incremented
-		} else {
-			if ok {
-				util.DPrintf(5, "memLogMap: replace %d pos %d old %d\n",
-					buf.Addr, pos, oldpos)
-			} else {
-				util.DPrintf(5, "memLogMap: add %d pos %d\n",
-					buf.Addr, pos)
-			}
-			memLog.append(buf)
-			pos += 1
-		}
-	}
-	// l.condLogger.Broadcast()
-}
-
 // Assumes caller holds memLock
 func doMemAppend(memLog *sliding, bufs []Update) LogPosition {
-	memWrite(memLog, bufs)
+	memLog.memWrite(bufs)
 	txn := memLog.end()
 	return txn
 }
