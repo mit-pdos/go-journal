@@ -143,6 +143,7 @@ func (l *Walog) MemAppend(bufs []Update) (LogPosition, bool) {
 		}
 		if st.memLogHasSpace(uint64(len(bufs))) {
 			txn = doMemAppend(st.memLog, bufs)
+			machine.Linearize()
 			break
 		}
 		util.DPrintf(5, "memAppend: log is full; try again")
