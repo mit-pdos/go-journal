@@ -39,10 +39,15 @@ func (s *sliding) posForAddr(a common.Bnum) (LogPosition, bool) {
 }
 
 // update does an in-place absorb of an update to u
+//
+// internal to sliding
 func (s *sliding) update(pos LogPosition, u Update) {
 	s.log[s.mutable-s.start:][pos-s.mutable] = u
 }
 
+// append writes an update that cannot be absorbed
+//
+// internal to sliding
 func (s *sliding) append(u Update) {
 	pos := s.start + LogPosition(len(s.log))
 	s.log = append(s.log, u)
