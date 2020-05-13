@@ -59,7 +59,6 @@ func doMemAppend(memLog *sliding, bufs []Update) LogPosition {
 // Assumes caller holds memLock.
 func (st *WalogState) endGroupTxn() {
 	st.memLog.clearMutable()
-	machine.Linearize()
 }
 
 //
