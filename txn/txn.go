@@ -1,10 +1,11 @@
 package txn
 
 import (
+	"github.com/tchajed/goose/machine/disk"
+
 	"github.com/mit-pdos/goose-nfsd/addr"
 	"github.com/mit-pdos/goose-nfsd/buf"
 	"github.com/mit-pdos/goose-nfsd/common"
-	"github.com/mit-pdos/goose-nfsd/super"
 	"github.com/mit-pdos/goose-nfsd/util"
 	"github.com/mit-pdos/goose-nfsd/wal"
 
@@ -22,16 +23,14 @@ type TransId = uint64
 type Txn struct {
 	mu     *sync.Mutex
 	log    *wal.Walog
-	fs     *super.FsSuper
 	nextId TransId
 	pos    wal.LogPosition // highest un-flushed log position
 }
 
-func MkTxn(fs *super.FsSuper) *Txn {
+func MkTxn(d disk.Disk) *Txn {
 	txn := &Txn{
 		mu:     new(sync.Mutex),
-		log:    wal.MkLog(fs.Disk),
-		fs:     fs,
+		log:    wal.MkLog(d),
 		nextId: TransId(0),
 		pos:    wal.LogPosition(0),
 	}
