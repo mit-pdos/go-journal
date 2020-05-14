@@ -85,21 +85,20 @@ func (s *sliding) memWrite(bufs []Update) {
 // takeFrom takes the read-only updates from a logical start position to the
 // current mutable boundary
 func (s *sliding) takeFrom(start LogPosition) []Update {
-	off := s.start
-	return s.log[:s.mutable-off][start-off:]
+	return s.log[:s.mutable-s.start][start-s.start:]
 }
 
 // takeTill takes the read-only updates till a logical start position (which
 // should be within the read-only region; that is, end <= s.mutable)
 func (s *sliding) takeTill(end LogPosition) []Update {
-	return s.log[:end-s.start]
+	return s.log[:s.mutable-s.start][:end-s.start]
 }
 
 // deleteFrom deletes read-only updates up to newStart,
 // correctly updating the start position
 func (s *sliding) deleteFrom(newStart LogPosition) {
 	start := s.start
-	for i, u := range s.log[:newStart-start] {
+	for i, u := range s.log[:s.mutable-start][:newStart-start] {
 		pos := start + LogPosition(i)
 		blkno := u.Addr
 		oldPos, ok := s.addrPos[blkno]
