@@ -86,7 +86,7 @@ func (s *sliding) memWrite(bufs []Update) {
 // current mutable boundary
 func (s *sliding) takeFrom(start LogPosition) []Update {
 	off := s.start
-	return s.log[start-off : s.mutable-off]
+	return s.log[:s.mutable-off][start-off:]
 }
 
 // takeTill takes the read-only updates till a logical start position (which
