@@ -165,6 +165,7 @@ func (l *Walog) Flush(pos LogPosition) {
 	util.DPrintf(1, "Flush: commit till txn %d\n", pos)
 	l.memLock.Lock()
 	l.condLogger.Broadcast()
+	// TODO: might need to be >=
 	if pos > l.st.memLog.mutable {
 		// Get the logger to log everything written so far.
 		//
