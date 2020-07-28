@@ -15,12 +15,25 @@ func (st *WalogState) cutMemLog(installEnd LogPosition) {
 	st.memLog.deleteFrom(installEnd)
 }
 
+// absorbBufs returns bufs' such that applyUpds(d, bufs') = applyUpds(d,
+// bufs) and bufs' has unique addresses
+func absorbBufs(bufs []Update) []Update {
+	s := mkSliding(nil, 0)
+	s.memWrite(bufs)
+	return s.takeTill(s.end())
+}
+
 // installBlocks installs the updates in bufs to the data region
 //
-// Does not hold the memLock, but expects exclusive ownership of the data
-// region.
+// Does not hold the memLock. De-duplicates writes in bufs such that:
+// (1) after installBlocks,
+// the equivalent of applying bufs in order is accomplished
+// (2) at all intermediate points,
+// the data region either has the value from the old transaction or the new
+// transaction (with all of bufs applied).
 func installBlocks(d disk.Disk, bufs []Update) {
-	for i, buf := range bufs {
+	absorbed := absorbBufs(bufs)
+	for i, buf := range absorbed {
 		blkno := buf.Addr
 		blk := buf.Block
 		util.DPrintf(5, "installBlocks: write log block %d to %d\n", i, blkno)
