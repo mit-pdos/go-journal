@@ -31,7 +31,7 @@ func MkTxn(d disk.Disk) *Txn {
 	txn := &Txn{
 		mu:     new(sync.Mutex),
 		log:    wal.MkLog(d),
-		nextId: TransId(0),
+		nextId: TransId(1),
 		pos:    wal.LogPosition(0),
 	}
 	return txn
@@ -40,11 +40,7 @@ func MkTxn(d disk.Disk) *Txn {
 // Return a unique Id for a transaction
 func (txn *Txn) GetTransId() TransId {
 	txn.mu.Lock()
-	var id = txn.nextId
-	if id == 0 { // skip 0
-		txn.nextId += 1
-		id = 1
-	}
+	id := txn.nextId
 	txn.nextId += 1
 	txn.mu.Unlock()
 	return id
