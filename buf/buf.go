@@ -1,3 +1,4 @@
+// buf manages sub-block disk objects, to be packed into disk blocks
 package buf
 
 import (
@@ -9,7 +10,7 @@ import (
 	"github.com/mit-pdos/goose-nfsd/util"
 )
 
-// A buf holds a disk object (inode, a bitmap bit, or disk block)
+// A Buf is a write to a disk object (inode, a bitmap bit, or disk block)
 type Buf struct {
 	Addr  addr.Addr
 	Sz    uint64 // number of bits

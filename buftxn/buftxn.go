@@ -1,3 +1,28 @@
+// buftxn manages "buffer"-based transactions
+//
+// The caller uses this interface by creating a BufTxn, reading/writing within
+// the transaction, and finally committing the buffered transaction.
+//
+// Note that while the API has reads and writes, these are not the usual database
+// read/write transactions. Only writes are made atomic and visible atomically;
+// reads are cached on first read. Thus to use this library the file
+// system in practice locks (sub-block) objects before running a transaction.
+// This is necessary so that loaded objects are read from a consistent view.
+//
+// Transactions support asynchronous durability by setting wait=false in
+// CommitWait. An asynchronous transaction is made visible atomically to other
+// threads, including across crashes, but if the system crashes a committed
+// asynchronous transaction can be lost. To guarantee that a particular
+// transaction is durable, call (*Buftxn) Flush (which flushes all transactions).
+//
+// Objects have sizes. Implicit in the code is that there is a static "schema"
+// that determines the disk layout: each block has objects of a particular size,
+// and all sizes used fit an integer number of objects in a block. This schema
+// guarantees that objects never overlap, as long as operations involving an
+// addr.Addr use the correct size for that block number.
+// The file system realizes this schema fairly simply,
+// since statically-allocated blocks are used for bitmap allocators (
+// objects are bits), inodes
 package buftxn
 
 import (
@@ -9,17 +34,13 @@ import (
 	"github.com/mit-pdos/goose-nfsd/util"
 )
 
-//
-// Txn layer used by file system.  A transaction has buffers that it
-// has read/written.
-//
-
 type BufTxn struct {
 	txn  *txn.Txn
 	bufs *buf.BufMap // map of bufs read/written by this transaction
 	Id   txn.TransId
 }
 
+// Start a local transaction with no writes from a global Txn manager.
 func Begin(txn *txn.Txn) *BufTxn {
 	trans := &BufTxn{
 		txn:  txn,
@@ -40,7 +61,7 @@ func (buftxn *BufTxn) ReadBuf(addr addr.Addr, sz uint64) *buf.Buf {
 	return b
 }
 
-// Caller overwrites addr without reading it
+// OverWrite writes an object to addr
 func (buftxn *BufTxn) OverWrite(addr addr.Addr, sz uint64, data []byte) {
 	var b = buftxn.bufs.Lookup(addr)
 	if b == nil {
@@ -56,19 +77,35 @@ func (buftxn *BufTxn) OverWrite(addr addr.Addr, sz uint64, data []byte) {
 	}
 }
 
+// NDirty reports an upper bound on the size of this transaction when committed.
+//
+// The caller cannot rely on any particular properties of this function for
+// safety.
 func (buftxn *BufTxn) NDirty() uint64 {
 	return buftxn.bufs.Ndirty()
 }
 
+// LogSz returns 511
 func (buftxn *BufTxn) LogSz() uint64 {
 	return buftxn.txn.LogSz()
 }
 
+// LogSzBytes returns 511*4096
 func (buftxn *BufTxn) LogSzBytes() uint64 {
 	return buftxn.txn.LogSz() * disk.BlockSize
 }
 
-// Commit dirty bufs of this transaction
+// CommitWait commits the writes in the transaction to disk.
+//
+// If CommitWait returns false, the transaction failed and had no logical effect.
+// This can happen, for example, if the transaction is too big to fit in the
+// on-disk journal.
+//
+// wait=true is a synchronous commit, which is durable as soon as CommitWait
+// returns.
+//
+// wait=false is an asynchronous commit, which can be made durable later with
+// Flush.
 func (buftxn *BufTxn) CommitWait(wait bool) bool {
 	util.DPrintf(1, "Commit %d w %v\n", buftxn.Id, wait)
 	ok := buftxn.txn.CommitWait(buftxn.bufs.DirtyBufs(), wait, buftxn.Id)

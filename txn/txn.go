@@ -20,6 +20,9 @@ import (
 
 type TransId = uint64
 
+// Txn mediates access to the transaction system.
+//
+// There is only one Txn object.
 type Txn struct {
 	mu     *sync.Mutex
 	log    *wal.Walog
@@ -27,6 +30,7 @@ type Txn struct {
 	pos    wal.LogPosition // highest un-flushed log position
 }
 
+// MkTxn recovers the txn system (or initializes from an all-zero disk).
 func MkTxn(d disk.Disk) *Txn {
 	txn := &Txn{
 		mu:     new(sync.Mutex),
@@ -133,6 +137,7 @@ func (txn *Txn) Flush() bool {
 	return true
 }
 
+// LogSz returns 511 (the size of the wal log)
 func (txn *Txn) LogSz() uint64 {
 	return wal.LOGSZ
 }

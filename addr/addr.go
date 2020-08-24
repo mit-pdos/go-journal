@@ -6,7 +6,11 @@ import (
 	"github.com/mit-pdos/goose-nfsd/common"
 )
 
-// Address of disk object and its size
+// Addr identifies the start of a disk object.
+//
+// Blkno is the block number containing the object, and Off is the location of
+// the object within the block (expressed as a bit offset). The size of the
+// object is determined by the context in which Addr is used.
 type Addr struct {
 	Blkno common.Bnum
 	Off   uint64 // offset in bits
