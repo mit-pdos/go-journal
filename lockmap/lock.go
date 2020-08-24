@@ -5,7 +5,6 @@ import (
 )
 
 type lockState struct {
-	owner   uint64 // for debugging
 	held    bool
 	cond    *sync.Cond
 	waiters uint64
@@ -26,7 +25,7 @@ func mkLockShard() *lockShard {
 	return a
 }
 
-func (lmap *lockShard) acquire(addr uint64, id uint64) {
+func (lmap *lockShard) acquire(addr uint64) {
 	lmap.mu.Lock()
 	for {
 		var state *lockState
@@ -36,7 +35,6 @@ func (lmap *lockShard) acquire(addr uint64, id uint64) {
 		} else {
 			// Allocate a new state
 			state = &lockState{
-				owner:   id,
 				held:    false,
 				cond:    sync.NewCond(lmap.mu),
 				waiters: 0,
@@ -48,7 +46,6 @@ func (lmap *lockShard) acquire(addr uint64, id uint64) {
 
 		if !state.held {
 			state.held = true
-			state.owner = id
 			acquired = true
 		} else {
 			state.waiters += 1
@@ -98,12 +95,12 @@ func MkLockMap() *LockMap {
 	return a
 }
 
-func (lmap *LockMap) Acquire(flataddr uint64, id uint64) {
+func (lmap *LockMap) Acquire(flataddr uint64) {
 	shard := lmap.shards[flataddr%NSHARD]
-	shard.acquire(flataddr, id)
+	shard.acquire(flataddr)
 }
 
-func (lmap *LockMap) Release(flataddr uint64, id uint64) {
+func (lmap *LockMap) Release(flataddr uint64) {
 	shard := lmap.shards[flataddr%NSHARD]
 	shard.release(flataddr)
 }

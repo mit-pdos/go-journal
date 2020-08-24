@@ -37,7 +37,6 @@ import (
 type BufTxn struct {
 	txn  *txn.Txn
 	bufs *buf.BufMap // map of bufs read/written by this transaction
-	Id   txn.TransId
 }
 
 // Start a local transaction with no writes from a global Txn manager.
@@ -45,9 +44,8 @@ func Begin(txn *txn.Txn) *BufTxn {
 	trans := &BufTxn{
 		txn:  txn,
 		bufs: buf.MkBufMap(),
-		Id:   txn.GetTransId(),
 	}
-	util.DPrintf(1, "Begin: %v\n", trans.Id)
+	util.DPrintf(1, "Begin: %v\n", trans)
 	return trans
 }
 
@@ -107,8 +105,8 @@ func (buftxn *BufTxn) LogSzBytes() uint64 {
 // wait=false is an asynchronous commit, which can be made durable later with
 // Flush.
 func (buftxn *BufTxn) CommitWait(wait bool) bool {
-	util.DPrintf(1, "Commit %d w %v\n", buftxn.Id, wait)
-	ok := buftxn.txn.CommitWait(buftxn.bufs.DirtyBufs(), wait, buftxn.Id)
+	util.DPrintf(1, "Commit %p w %v\n", buftxn, wait)
+	ok := buftxn.txn.CommitWait(buftxn.bufs.DirtyBufs(), wait)
 	return ok
 }
 

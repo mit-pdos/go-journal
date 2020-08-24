@@ -18,36 +18,23 @@ import (
 // upper layers are responsible for locking and lock ordering.
 //
 
-type TransId = uint64
-
 // Txn mediates access to the transaction system.
 //
 // There is only one Txn object.
 type Txn struct {
-	mu     *sync.Mutex
-	log    *wal.Walog
-	nextId TransId
-	pos    wal.LogPosition // highest un-flushed log position
+	mu  *sync.Mutex
+	log *wal.Walog
+	pos wal.LogPosition // highest un-flushed log position
 }
 
 // MkTxn recovers the txn system (or initializes from an all-zero disk).
 func MkTxn(d disk.Disk) *Txn {
 	txn := &Txn{
-		mu:     new(sync.Mutex),
-		log:    wal.MkLog(d),
-		nextId: TransId(1),
-		pos:    wal.LogPosition(0),
+		mu:  new(sync.Mutex),
+		log: wal.MkLog(d),
+		pos: wal.LogPosition(0),
 	}
 	return txn
-}
-
-// Return a unique Id for a transaction
-func (txn *Txn) GetTransId() TransId {
-	txn.mu.Lock()
-	id := txn.nextId
-	txn.nextId += 1
-	txn.mu.Unlock()
-	return id
 }
 
 // Read a disk object into buf
@@ -109,7 +96,7 @@ func (txn *Txn) doCommit(bufs []*buf.Buf) (wal.LogPosition, bool) {
 }
 
 // Commit dirty bufs of the transaction into the log, and perhaps wait.
-func (txn *Txn) CommitWait(bufs []*buf.Buf, wait bool, id TransId) bool {
+func (txn *Txn) CommitWait(bufs []*buf.Buf, wait bool) bool {
 	var commit = true
 	if len(bufs) > 0 {
 		n, ok := txn.doCommit(bufs)
