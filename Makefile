@@ -1,5 +1,5 @@
 GOPATH		:= $(shell go env GOPATH)
-GOOSE_DIRS	:= buf util common addr wal alloc super buftxn cache fh fstxn txn inode lockmap kvs simple
+GOOSE_DIRS	:= buf util common addr wal alloc super buftxn cache fh fstxn txn inode lockmap kvs nfstypes simple
 
 # Things that don't goose yet:
 #   .
@@ -19,6 +19,9 @@ goose-output: $(patsubst %,${COQ_PKGDIR}/%.v,$(GOOSE_DIRS))
 
 ${COQ_PKGDIR}/%.v: % %/*
 	$(GOPATH)/bin/goose -package github.com/mit-pdos/goose-nfsd/$< -out Goose ./$<
+
+${COQ_PKGDIR}/nfstypes.v: nfstypes/nfs_types.go
+	$(GOPATH)/bin/goose -package github.com/mit-pdos/goose-nfsd/$< -out Goose ./nfstypes/goose-workaround/nfstypes
 
 clean:
 	rm -rf Goose
