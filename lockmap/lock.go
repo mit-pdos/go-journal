@@ -85,9 +85,9 @@ type LockMap struct {
 }
 
 func MkLockMap() *LockMap {
-	shards := make([]*lockShard, NSHARD)
+	var shards []*lockShard
 	for i := uint64(0); i < NSHARD; i++ {
-		shards[i] = mkLockShard()
+		shards = append(shards, mkLockShard())
 	}
 	a := &LockMap{
 		shards: shards,
