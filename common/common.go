@@ -5,11 +5,11 @@ import (
 )
 
 const (
+	INODESZ uint64 = 128 // on-disk size
+
 	NBITBLOCK    uint64 = disk.BlockSize * 8
 	INODEBLK     uint64 = disk.BlockSize / INODESZ
 	NINODEBITMAP uint64 = 1
-
-	INODESZ uint64 = 128 // on-disk size
 
 	HDRMETA  = uint64(8) // space for the end position
 	HDRADDRS = (disk.BlockSize - HDRMETA) / 8
