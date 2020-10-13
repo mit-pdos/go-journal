@@ -56,7 +56,8 @@ func installBlocks(d disk.Disk, bufs []Update) {
 func (l *Walog) logInstall() (uint64, LogPosition) {
 	installEnd := l.st.diskEnd
 	bufs := l.st.memLog.takeTill(installEnd)
-	if len(bufs) == 0 {
+	numBufs := uint64(len(bufs))
+	if numBufs == 0 {
 		return 0, installEnd
 	}
 
@@ -70,7 +71,7 @@ func (l *Walog) logInstall() (uint64, LogPosition) {
 	l.st.cutMemLog(installEnd)
 	l.condInstall.Broadcast()
 
-	return uint64(len(bufs)), installEnd
+	return numBufs, installEnd
 }
 
 // installer installs blocks from the on-disk log to their home location.
