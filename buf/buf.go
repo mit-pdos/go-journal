@@ -67,6 +67,9 @@ func installBit(src []byte, dst []byte, dstoff uint64) {
 func installBytes(src []byte, dst []byte, dstoff uint64, nbit uint64) {
 	sz := nbit / 8
 	copy(dst[dstoff/8:], src[:sz])
+	// XXX(tej): work around goose translation error where installBytes
+	// returns result of copy above rather than #()
+	return
 }
 
 // Install the bits from buf into blk.  Two cases: a bit or an inode
