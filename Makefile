@@ -3,7 +3,8 @@ GOOSE_DIRS	:= buf util common addr wal alloc super buftxn cache fh fstxn txn ino
 
 # Things that don't goose yet:
 #   .
-#   dcache
+#   dcache: map with string keys
+#   inode: time package
 #   nfstypes: need to ignore nfs_xdr.go
 
 COQ_PKGDIR := Goose/github_com/mit_pdos/goose_nfsd
