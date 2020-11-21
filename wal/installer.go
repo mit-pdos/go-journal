@@ -20,8 +20,7 @@ func (st *WalogState) cutMemLog(installEnd LogPosition) {
 func absorbBufs(bufs []Update) []Update {
 	s := mkSliding(nil, 0)
 	s.memWrite(bufs)
-	s.clearMutable()
-	return s.takeTill(s.end())
+	return s.intoMutable()
 }
 
 // installBlocks installs the updates in bufs to the data region

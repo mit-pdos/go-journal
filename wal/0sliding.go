@@ -94,6 +94,10 @@ func (s *sliding) takeTill(end LogPosition) []Update {
 	return s.log[:s.mutable-s.start][:end-s.start]
 }
 
+func (s *sliding) intoMutable() []Update {
+	return s.log[s.mutable-s.start:]
+}
+
 // deleteFrom deletes read-only updates up to newStart,
 // correctly updating the start position
 func (s *sliding) deleteFrom(newStart LogPosition) {
