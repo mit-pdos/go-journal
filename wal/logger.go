@@ -61,6 +61,9 @@ func (l *Walog) logger(circ *circularAppender) {
 		if !progress {
 			l.condLogger.Wait()
 		}
+		if progress {
+			l.logInstall()
+		}
 	}
 	util.DPrintf(1, "logger: shutdown\n")
 	l.st.nthread -= 1
