@@ -3,11 +3,9 @@ module github.com/mit-pdos/goose-nfsd
 go 1.12
 
 require (
-	github.com/fatih/color v1.10.0 // indirect
 	github.com/stretchr/testify v1.6.1
-	github.com/tchajed/goose v0.0.0-20201112235432-999a4da7d1c4
+	github.com/tchajed/goose v0.0.0-20201210042542-208ac5704d2b
 	github.com/tchajed/marshal v0.0.0-20200707011626-0d2aa09818a9
 	github.com/zeldovich/go-rpcgen v0.1.0
-	golang.org/x/sys v0.0.0-20201107080550-4d91cf3a1aaf // indirect
-	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776 // indirect
+	golang.org/x/sys v0.0.0-20201211090839-8ad439b19e0f // indirect
 )
