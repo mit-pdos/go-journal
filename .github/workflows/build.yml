@@ -22,7 +22,7 @@ jobs:
     - name: Install dependencies
       run: |
         go get github.com/tchajed/goose/cmd/goose
-        go get -t ./...
+        go get ./...
     - name: Check style
       run: |
         gofmt -w .
