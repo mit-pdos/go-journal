@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches:
+    - master
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        go-version: ["1.15.x"]
+        os: ["ubuntu-20.04"]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - name: Install Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ matrix.go-version }}
+    - uses: actions/checkout@v2
+    - name: Install dependencies
+      run: |
+        go get github.com/tchajed/goose/cmd/goose
+        go get -t ./...
+    - name: Check style
+      run: |
+        gofmt -w .
+        git diff --exit-code
+        go vet ./...
+    - name: Test
+      run: |
+        go test -v ./...
+        make goose-output
