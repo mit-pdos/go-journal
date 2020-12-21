@@ -85,14 +85,6 @@ func (buf *Buf) Install(blk disk.Block) {
 	util.DPrintf(20, "install -> %v\n", blk)
 }
 
-// Load the bits of a disk block into buf, as specified by addr
-func (buf *Buf) Load(sz uint64, blk disk.Block) {
-	bytefirst := buf.Addr.Off / 8
-	bytelast := (buf.Addr.Off + sz - 1) / 8
-	buf.Sz = sz
-	buf.Data = blk[bytefirst : bytelast+1]
-}
-
 func (buf *Buf) IsDirty() bool {
 	return buf.dirty
 }
