@@ -88,6 +88,7 @@ func (txn *Txn) doCommit(bufs []*buf.Buf) (wal.LogPosition, bool) {
 	util.DPrintf(3, "doCommit: %v bufs\n", len(blks))
 
 	n, ok := txn.log.MemAppend(blks)
+	// FIXME: should only be set if ok
 	txn.pos = n
 
 	txn.mu.Unlock()
