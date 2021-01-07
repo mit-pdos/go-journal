@@ -14,6 +14,9 @@ type Alloc struct {
 	bitmap []byte
 }
 
+// MkAlloc initializes with a bitmap.
+//
+// 0 bits correspond to free numbers and 1 bits correspond to in-use numbers.
 func MkAlloc(bitmap []byte) *Alloc {
 	a := &Alloc{
 		mu:     new(sync.Mutex),
@@ -61,6 +64,14 @@ func (a *Alloc) freeBit(bn uint64) {
 	byte := bn / 8
 	bit := bn % 8
 	a.bitmap[byte] = a.bitmap[byte] & ^(1 << bit)
+	a.mu.Unlock()
+}
+
+func (a *Alloc) MarkUsed(bn uint64) {
+	a.mu.Lock()
+	byte := bn / 8
+	bit := bn % 8
+	a.bitmap[byte] = a.bitmap[byte] | (1 << bit)
 	a.mu.Unlock()
 }
 
