@@ -29,7 +29,7 @@ func Begin(txn *txn.Txn, l *lockmap.LockMap) *TwoPhase {
 
 func (twophase *TwoPhase) Acquire(addr addr.Addr) {
 	bnum := addr.Blkno
-	already_acquired := false
+	var already_acquired = false
 	for _, acq := range twophase.acquired {
 		if bnum == acq {
 			already_acquired = true
