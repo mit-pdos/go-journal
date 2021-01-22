@@ -33,7 +33,6 @@ func (twophase *TwoPhase) Acquire(addr addr.Addr) {
 	for _, acq := range twophase.acquired {
 		if bnum == acq {
 			already_acquired = true
-			break
 		}
 	}
 	if !already_acquired {
