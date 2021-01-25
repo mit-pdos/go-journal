@@ -27,8 +27,12 @@ func Begin(txn *txn.Txn, l *lockmap.LockMap) *TwoPhase {
 	return trans
 }
 
-func (twophase *TwoPhase) Acquire(addr addr.Addr) {
-	bnum := addr.Blkno
+func (twophase *TwoPhase) acquireNoCheck(bnum uint64) {
+	twophase.locks.Acquire(bnum)
+	twophase.acquired = append(twophase.acquired, bnum)
+}
+
+func (twophase *TwoPhase) Acquire(bnum uint64) {
 	var already_acquired = false
 	for _, acq := range twophase.acquired {
 		if bnum == acq {
@@ -36,8 +40,7 @@ func (twophase *TwoPhase) Acquire(addr addr.Addr) {
 		}
 	}
 	if !already_acquired {
-		twophase.locks.Acquire(bnum)
-		twophase.acquired = append(twophase.acquired, bnum)
+		twophase.acquireNoCheck(bnum)
 	}
 }
 
@@ -54,13 +57,13 @@ func (twophase *TwoPhase) ReleaseAll() {
 }
 
 func (twophase *TwoPhase) ReadBuf(addr addr.Addr, sz uint64) *buf.Buf {
-	twophase.Acquire(addr)
+	twophase.Acquire(addr.Blkno)
 	return twophase.buftxn.ReadBuf(addr, sz)
 }
 
 // OverWrite writes an object to addr
 func (twophase *TwoPhase) OverWrite(addr addr.Addr, sz uint64, data []byte) {
-	twophase.Acquire(addr)
+	twophase.Acquire(addr.Blkno)
 	twophase.buftxn.OverWrite(addr, sz, data)
 }
 
