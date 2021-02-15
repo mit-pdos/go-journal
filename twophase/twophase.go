@@ -2,7 +2,6 @@ package twophase
 
 import (
 	"github.com/mit-pdos/goose-nfsd/addr"
-	"github.com/mit-pdos/goose-nfsd/buf"
 	"github.com/mit-pdos/goose-nfsd/buftxn"
 	"github.com/mit-pdos/goose-nfsd/common"
 	"github.com/mit-pdos/goose-nfsd/lockmap"
@@ -32,13 +31,18 @@ func (twophase *TwoPhase) acquireNoCheck(bnum uint64) {
 	twophase.acquired = append(twophase.acquired, bnum)
 }
 
-func (twophase *TwoPhase) Acquire(bnum uint64) {
+func (twophase *TwoPhase) isAlreadyAcquired(bnum uint64) bool {
 	var already_acquired = false
 	for _, acq := range twophase.acquired {
 		if bnum == acq {
 			already_acquired = true
 		}
 	}
+	return already_acquired
+}
+
+func (twophase *TwoPhase) Acquire(bnum uint64) {
+	already_acquired := twophase.isAlreadyAcquired(bnum)
 	if !already_acquired {
 		twophase.acquireNoCheck(bnum)
 	}
@@ -56,9 +60,18 @@ func (twophase *TwoPhase) ReleaseAll() {
 	}
 }
 
-func (twophase *TwoPhase) ReadBuf(addr addr.Addr, sz uint64) *buf.Buf {
+func (twophase *TwoPhase) readBufNoAcquire(addr addr.Addr, sz uint64) []byte {
+	// PERFORMANCE-IMPACTING HACK:
+	// Copying out the data to a new slice isn't necessary,
+	// but we need to make it explicit to the proof that we
+	// aren't using the read-modify feature of buftxn.
+	s := util.CloneByteSlice(twophase.buftxn.ReadBuf(addr, sz).Data)
+	return s
+}
+
+func (twophase *TwoPhase) ReadBuf(addr addr.Addr, sz uint64) []byte {
 	twophase.Acquire(addr.Blkno)
-	return twophase.buftxn.ReadBuf(addr, sz)
+	return twophase.readBufNoAcquire(addr, sz)
 }
 
 // OverWrite writes an object to addr
@@ -85,9 +98,13 @@ func (twophase *TwoPhase) LogSzBytes() uint64 {
 	return twophase.buftxn.LogSzBytes()
 }
 
-func (twophase *TwoPhase) Commit() bool {
+func (twophase *TwoPhase) CommitNoRelease() bool {
 	util.DPrintf(1, "tp Commit %p\n", twophase)
-	ok := twophase.buftxn.CommitWait(true)
+	return twophase.buftxn.CommitWait(true)
+}
+
+func (twophase *TwoPhase) Commit() bool {
+	ok := twophase.CommitNoRelease()
 	twophase.ReleaseAll()
 	return ok
 }
