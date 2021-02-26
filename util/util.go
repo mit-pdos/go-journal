@@ -4,7 +4,7 @@ import (
 	"log"
 )
 
-const Debug uint64 = 0
+var Debug uint64 = 0
 
 func DPrintf(level uint64, format string, a ...interface{}) {
 	if level <= Debug {
