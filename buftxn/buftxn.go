@@ -46,7 +46,7 @@ func Begin(txn *txn.Txn) *BufTxn {
 		txn:  txn,
 		bufs: buf.MkBufMap(),
 	}
-	util.DPrintf(1, "Begin: %v\n", trans)
+	util.DPrintf(3, "Begin: %v\n", trans)
 	return trans
 }
 
@@ -106,7 +106,7 @@ func (buftxn *BufTxn) LogSzBytes() uint64 {
 // wait=false is an asynchronous commit, which can be made durable later with
 // Flush.
 func (buftxn *BufTxn) CommitWait(wait bool) bool {
-	util.DPrintf(1, "Commit %p w %v\n", buftxn, wait)
+	util.DPrintf(3, "Commit %p w %v\n", buftxn, wait)
 	ok := buftxn.txn.CommitWait(buftxn.bufs.DirtyBufs(), wait)
 	return ok
 }

@@ -162,7 +162,7 @@ func (l *Walog) MemAppend(bufs []Update) (LogPosition, bool) {
 // The implementation waits until the logger has appended in-memory log up to
 // txn to on-disk log.
 func (l *Walog) Flush(pos LogPosition) {
-	util.DPrintf(1, "Flush: commit till txn %d\n", pos)
+	util.DPrintf(2, "Flush: commit till txn %d\n", pos)
 	l.memLock.Lock()
 	l.condLogger.Broadcast()
 	// TODO: might need to be >=
