@@ -12,7 +12,7 @@ import (
 type TwoPhase struct {
 	buftxn   *buftxn.BufTxn
 	locks    *lockmap.LockMap
-	acquired []common.Bnum
+	acquired []uint64
 }
 
 // Start a local transaction with no writes from a global Txn manager.
@@ -26,25 +26,27 @@ func Begin(txn *txn.Txn, l *lockmap.LockMap) *TwoPhase {
 	return trans
 }
 
-func (twophase *TwoPhase) acquireNoCheck(bnum uint64) {
-	twophase.locks.Acquire(bnum)
-	twophase.acquired = append(twophase.acquired, bnum)
+func (twophase *TwoPhase) acquireNoCheck(addr addr.Addr) {
+	flatAddr := addr.Flatid()
+	twophase.locks.Acquire(flatAddr)
+	twophase.acquired = append(twophase.acquired, flatAddr)
 }
 
-func (twophase *TwoPhase) isAlreadyAcquired(bnum uint64) bool {
+func (twophase *TwoPhase) isAlreadyAcquired(addr addr.Addr) bool {
+	flatAddr := addr.Flatid()
 	var already_acquired = false
 	for _, acq := range twophase.acquired {
-		if bnum == acq {
+		if flatAddr == acq {
 			already_acquired = true
 		}
 	}
 	return already_acquired
 }
 
-func (twophase *TwoPhase) Acquire(bnum uint64) {
-	already_acquired := twophase.isAlreadyAcquired(bnum)
+func (twophase *TwoPhase) Acquire(addr addr.Addr) {
+	already_acquired := twophase.isAlreadyAcquired(addr)
 	if !already_acquired {
-		twophase.acquireNoCheck(bnum)
+		twophase.acquireNoCheck(addr)
 	}
 }
 
@@ -70,13 +72,13 @@ func (twophase *TwoPhase) readBufNoAcquire(addr addr.Addr, sz uint64) []byte {
 }
 
 func (twophase *TwoPhase) ReadBuf(addr addr.Addr, sz uint64) []byte {
-	twophase.Acquire(addr.Blkno)
+	twophase.Acquire(addr)
 	return twophase.readBufNoAcquire(addr, sz)
 }
 
 // OverWrite writes an object to addr
 func (twophase *TwoPhase) OverWrite(addr addr.Addr, sz uint64, data []byte) {
-	twophase.Acquire(addr.Blkno)
+	twophase.Acquire(addr)
 	twophase.buftxn.OverWrite(addr, sz, data)
 }
 
