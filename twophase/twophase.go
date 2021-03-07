@@ -22,7 +22,7 @@ func Begin(txn *txn.Txn, l *lockmap.LockMap) *TwoPhase {
 		locks:    l,
 		acquired: make([]common.Bnum, 0),
 	}
-	util.DPrintf(1, "tp Begin: %v\n", trans)
+	util.DPrintf(5, "tp Begin: %v\n", trans)
 	return trans
 }
 
@@ -101,7 +101,7 @@ func (twophase *TwoPhase) LogSzBytes() uint64 {
 }
 
 func (twophase *TwoPhase) CommitNoRelease() bool {
-	util.DPrintf(1, "tp Commit %p\n", twophase)
+	util.DPrintf(5, "tp Commit %p\n", twophase)
 	return twophase.buftxn.CommitWait(true)
 }
 
