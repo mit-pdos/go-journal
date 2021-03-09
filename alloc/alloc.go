@@ -86,3 +86,23 @@ func (a *Alloc) FreeNum(num uint64) {
 	}
 	a.freeBit(num)
 }
+
+func popCnt(b byte) uint64 {
+	var count uint64
+	var x = b
+	for i := uint64(0); i < 8; i++ {
+		count += uint64(b & 1)
+		x = x >> 1
+	}
+	return count
+}
+
+func (a *Alloc) NumFree() uint64 {
+	a.mu.Lock()
+	var count uint64
+	for _, b := range a.bitmap {
+		count += popCnt(b)
+	}
+	a.mu.Unlock()
+	return count
+}
