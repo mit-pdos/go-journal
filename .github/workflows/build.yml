@@ -18,10 +18,12 @@ jobs:
       uses: actions/setup-go@v2
       with:
         go-version: ${{ matrix.go-version }}
+    - name: Install Goose
+      run: |
+        go install github.com/tchajed/goose/cmd/goose
     - uses: actions/checkout@v2
     - name: Install dependencies
       run: |
-        go get github.com/tchajed/goose/cmd/goose
         go get ./...
     - name: Check style
       run: |
