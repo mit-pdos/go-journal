@@ -20,7 +20,7 @@ jobs:
         go-version: ${{ matrix.go-version }}
     - name: Install Goose
       run: |
-        go install github.com/tchajed/goose/cmd/goose
+        go install github.com/tchajed/goose/cmd/goose@latest
     - uses: actions/checkout@v2
     - name: Install dependencies
       run: |
