@@ -12,8 +12,8 @@ import (
 )
 
 type TwoPhasePre struct {
-	txn      *txn.Txn
-	locks    *lockmap.LockMap
+	txn   *txn.Txn
+	locks *lockmap.LockMap
 }
 
 type TwoPhase struct {
