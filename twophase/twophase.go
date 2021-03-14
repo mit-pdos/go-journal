@@ -1,6 +1,8 @@
 package twophase
 
 import (
+	"github.com/tchajed/goose/machine/disk"
+
 	"github.com/mit-pdos/goose-nfsd/addr"
 	"github.com/mit-pdos/goose-nfsd/buftxn"
 	"github.com/mit-pdos/goose-nfsd/common"
@@ -9,17 +11,30 @@ import (
 	"github.com/mit-pdos/goose-nfsd/util"
 )
 
+type TwoPhasePre struct {
+	txn      *txn.Txn
+	locks    *lockmap.LockMap
+}
+
 type TwoPhase struct {
 	buftxn   *buftxn.BufTxn
 	locks    *lockmap.LockMap
 	acquired []uint64
 }
 
+func Init(d disk.Disk) *TwoPhasePre {
+	twophasePre := &TwoPhasePre{
+		txn:   txn.MkTxn(d),
+		locks: lockmap.MkLockMap(),
+	}
+	return twophasePre
+}
+
 // Start a local transaction with no writes from a global Txn manager.
-func Begin(txn *txn.Txn, l *lockmap.LockMap) *TwoPhase {
+func Begin(twophasePre *TwoPhasePre) *TwoPhase {
 	trans := &TwoPhase{
-		buftxn:   buftxn.Begin(txn),
-		locks:    l,
+		buftxn:   buftxn.Begin(twophasePre.txn),
+		locks:    twophasePre.locks,
 		acquired: make([]common.Bnum, 0),
 	}
 	util.DPrintf(5, "tp Begin: %v\n", trans)
