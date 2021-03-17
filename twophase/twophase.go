@@ -97,6 +97,19 @@ func (twophase *TwoPhase) OverWrite(addr addr.Addr, sz uint64, data []byte) {
 	twophase.buftxn.OverWrite(addr, sz, data)
 }
 
+func (twophase *TwoPhase) ReadBufBit(addr addr.Addr) bool {
+	dataByte := twophase.ReadBuf(addr, 1)[0]
+	return (dataByte >> (addr.Off % 8)) == 1
+}
+
+func (twophase *TwoPhase) OverWriteBit(addr addr.Addr, data bool) {
+	var dataByte byte
+	if data {
+		dataByte = 1 << (addr.Off % 8)
+	}
+	twophase.OverWrite(addr, 1, []byte{dataByte})
+}
+
 // NDirty reports an upper bound on the size of this transaction when committed.
 //
 // The caller cannot rely on any particular properties of this function for
