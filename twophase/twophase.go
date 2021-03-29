@@ -112,7 +112,7 @@ func bitToByte(off uint64, data bool) byte {
 
 func (twophase *TwoPhase) OverWriteBit(addr addr.Addr, data bool) {
 	dataBytes := make([]byte, 1)
-	dataBytes[0] = bitToByte(addr.Off % 8, data)
+	dataBytes[0] = bitToByte(addr.Off%8, data)
 	twophase.OverWrite(addr, 1, dataBytes)
 }
 
