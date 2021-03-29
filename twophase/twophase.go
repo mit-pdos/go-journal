@@ -99,15 +99,21 @@ func (twophase *TwoPhase) OverWrite(addr addr.Addr, sz uint64, data []byte) {
 
 func (twophase *TwoPhase) ReadBufBit(addr addr.Addr) bool {
 	dataByte := twophase.ReadBuf(addr, 1)[0]
-	return (dataByte >> (addr.Off % 8)) == 1
+	return 1 == ((dataByte >> (addr.Off % 8)) & 1)
+}
+
+func bitToByte(off uint64, data bool) byte {
+	if data {
+		return 1 << off
+	} else {
+		return 0
+	}
 }
 
 func (twophase *TwoPhase) OverWriteBit(addr addr.Addr, data bool) {
-	var dataByte byte
-	if data {
-		dataByte = 1 << (addr.Off % 8)
-	}
-	twophase.OverWrite(addr, 1, []byte{dataByte})
+	dataBytes := make([]byte, 1)
+	dataBytes[0] = bitToByte(addr.Off % 8, data)
+	twophase.OverWrite(addr, 1, dataBytes)
 }
 
 // NDirty reports an upper bound on the size of this transaction when committed.
