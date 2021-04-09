@@ -26,6 +26,20 @@ func MkAlloc(bitmap []byte) *Alloc {
 	return a
 }
 
+// MkMaxAlloc initializes an allocator to be fully free with a range of (0,
+// max).
+//
+// Requires 0 < max and max % 8 == 0.
+func MkMaxAlloc(max uint64) *Alloc {
+	if !(0 < max && max%8 == 0) {
+		panic("invalid max, must be at least 0 and divisible by 8")
+	}
+	bitmap := make([]byte, max/8)
+	a := MkAlloc(bitmap)
+	a.MarkUsed(0)
+	return a
+}
+
 func (a *Alloc) incNext() uint64 {
 	a.next = a.next + 1
 	if a.next >= uint64(len(a.bitmap)*8) {
