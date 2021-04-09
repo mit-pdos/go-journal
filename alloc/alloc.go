@@ -26,6 +26,14 @@ func MkAlloc(bitmap []byte) *Alloc {
 	return a
 }
 
+func (a *Alloc) MarkUsed(bn uint64) {
+	a.mu.Lock()
+	byte := bn / 8
+	bit := bn % 8
+	a.bitmap[byte] = a.bitmap[byte] | (1 << bit)
+	a.mu.Unlock()
+}
+
 // MkMaxAlloc initializes an allocator to be fully free with a range of (0,
 // max).
 //
@@ -78,14 +86,6 @@ func (a *Alloc) freeBit(bn uint64) {
 	byte := bn / 8
 	bit := bn % 8
 	a.bitmap[byte] = a.bitmap[byte] & ^(1 << bit)
-	a.mu.Unlock()
-}
-
-func (a *Alloc) MarkUsed(bn uint64) {
-	a.mu.Lock()
-	byte := bn / 8
-	bit := bn % 8
-	a.bitmap[byte] = a.bitmap[byte] | (1 << bit)
 	a.mu.Unlock()
 }
 
