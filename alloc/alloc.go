@@ -105,7 +105,7 @@ func popCnt(b byte) uint64 {
 	var count uint64
 	var x = b
 	for i := uint64(0); i < 8; i++ {
-		count += uint64(b & 1)
+		count += uint64(x & 1)
 		x = x >> 1
 	}
 	return count
@@ -113,10 +113,11 @@ func popCnt(b byte) uint64 {
 
 func (a *Alloc) NumFree() uint64 {
 	a.mu.Lock()
+	total := 8 * uint64(len(a.bitmap))
 	var count uint64
 	for _, b := range a.bitmap {
 		count += popCnt(b)
 	}
 	a.mu.Unlock()
-	return count
+	return total - count
 }
