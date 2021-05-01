@@ -32,6 +32,8 @@ func (bmap *BufMap) Del(addr addr.Addr) {
 }
 
 func (bmap *BufMap) Ndirty() uint64 {
+	// in GooseLang this call assumes map has < 2^64 elements
+	_ = uint64(len(bmap.addrs))
 	var n uint64 = 0
 	for _, buf := range bmap.addrs {
 		if buf.dirty {
