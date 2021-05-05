@@ -65,7 +65,7 @@ func (a *Alloc) allocBit() uint64 {
 	for {
 		bit := num % 8
 		byte := num / 8
-		util.DPrintf(10, "allocBit: s %d num %d\n", start, num)
+		// util.DPrintf(10, "allocBit: s %d num %d\n", start, num)
 		if a.bitmap[byte]&(1<<bit) == 0 {
 			a.bitmap[byte] = a.bitmap[byte] | (1 << bit)
 			break
