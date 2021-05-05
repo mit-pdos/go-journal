@@ -2,8 +2,6 @@ package alloc
 
 import (
 	"sync"
-
-	"github.com/mit-pdos/goose-nfsd/util"
 )
 
 // Allocator uses a bit map to allocate and free numbers. Bit 0
