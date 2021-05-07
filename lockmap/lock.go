@@ -90,7 +90,7 @@ func (lmap *lockShard) release(addr uint64) {
 	lmap.mu.Unlock()
 }
 
-const NSHARD uint64 = 43
+const NSHARD uint64 = 65537
 
 type LockMap struct {
 	shards []*lockShard
