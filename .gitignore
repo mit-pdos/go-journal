@@ -5,3 +5,6 @@ nfs.out
 fs-smallfile
 clnt-smallfile
 fs-largefile
+goose-nfsd
+# profiling output
+cpu.prof
