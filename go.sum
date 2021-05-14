@@ -35,8 +35,8 @@ github.com/tchajed/mailboat v0.2.0/go.mod h1:aKa/T1YCMVZFM2xbXnMNyp9r4k0pPni4+sJ
 github.com/tchajed/marshal v0.0.0-20200707011626-0d2aa09818a9/go.mod h1:TPo3bTYJkH87/4rXlxe0bpVWLnN+b5kjJnoXHLBfdaA=
 github.com/tchajed/marshal v0.0.0-20210312145633-4d998c90d194 h1:ClGVtLtcuQWIr9uSUJh7xMAlUuA+dvseqI8y9C/DSzY=
 github.com/tchajed/marshal v0.0.0-20210312145633-4d998c90d194/go.mod h1:TPo3bTYJkH87/4rXlxe0bpVWLnN+b5kjJnoXHLBfdaA=
-github.com/zeldovich/go-rpcgen v0.1.1 h1:K19jRWRTRsHOB+iunvogGv0nvJYiDeaA0PmhfCGKy7c=
-github.com/zeldovich/go-rpcgen v0.1.1/go.mod h1:CaF7Ys1EaK+D18PEYCmjISruqU1z98Cw+F/fwNUj4KQ=
+github.com/zeldovich/go-rpcgen v0.1.2 h1:xptEebRBghQwG9G5TJr2Ya1bkjKaAseqMWmwRwXR5rg=
+github.com/zeldovich/go-rpcgen v0.1.2/go.mod h1:CaF7Ys1EaK+D18PEYCmjISruqU1z98Cw+F/fwNUj4KQ=
 golang.org/x/sys v0.0.0-20190222072716-a9d3bda3a223/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
 golang.org/x/sys v0.0.0-20191008105621-543471e840be/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20191026070338-33540a1f6037/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
