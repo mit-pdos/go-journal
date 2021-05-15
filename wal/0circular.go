@@ -94,6 +94,7 @@ func (c *circularAppender) logBlocks(d disk.Disk, end LogPosition, bufs []Update
 
 func (c *circularAppender) Append(d disk.Disk, end LogPosition, bufs []Update) {
 	c.logBlocks(d, end, bufs)
+	d.Barrier()
 	// atomic installation
 	newEnd := end + LogPosition(len(bufs))
 	b := c.hdr1(newEnd)
