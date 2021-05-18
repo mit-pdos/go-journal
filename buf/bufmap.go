@@ -1,7 +1,7 @@
 package buf
 
 import (
-	"github.com/mit-pdos/goose-nfsd/addr"
+	"github.com/mit-pdos/go-journal/addr"
 )
 
 //

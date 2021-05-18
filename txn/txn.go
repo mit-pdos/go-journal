@@ -3,11 +3,11 @@ package txn
 import (
 	"github.com/tchajed/goose/machine/disk"
 
-	"github.com/mit-pdos/goose-nfsd/addr"
-	"github.com/mit-pdos/goose-nfsd/buf"
-	"github.com/mit-pdos/goose-nfsd/common"
-	"github.com/mit-pdos/goose-nfsd/util"
-	"github.com/mit-pdos/goose-nfsd/wal"
+	"github.com/mit-pdos/go-journal/addr"
+	"github.com/mit-pdos/go-journal/buf"
+	"github.com/mit-pdos/go-journal/common"
+	"github.com/mit-pdos/go-journal/util"
+	"github.com/mit-pdos/go-journal/wal"
 
 	"sync"
 )

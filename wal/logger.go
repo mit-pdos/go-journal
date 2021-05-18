@@ -1,7 +1,7 @@
 package wal
 
 import (
-	"github.com/mit-pdos/goose-nfsd/util"
+	"github.com/mit-pdos/go-journal/util"
 	"github.com/tchajed/goose/machine"
 )
 

@@ -3,7 +3,7 @@ package wal
 import (
 	"github.com/tchajed/goose/machine/disk"
 
-	"github.com/mit-pdos/goose-nfsd/util"
+	"github.com/mit-pdos/go-journal/util"
 )
 
 // cutMemLog deletes from the memLog through installEnd, after these blocks have

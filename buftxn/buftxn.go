@@ -29,10 +29,10 @@ package buftxn
 import (
 	"github.com/tchajed/goose/machine/disk"
 
-	"github.com/mit-pdos/goose-nfsd/addr"
-	"github.com/mit-pdos/goose-nfsd/buf"
-	"github.com/mit-pdos/goose-nfsd/txn"
-	"github.com/mit-pdos/goose-nfsd/util"
+	"github.com/mit-pdos/go-journal/addr"
+	"github.com/mit-pdos/go-journal/buf"
+	"github.com/mit-pdos/go-journal/txn"
+	"github.com/mit-pdos/go-journal/util"
 )
 
 type BufTxn struct {

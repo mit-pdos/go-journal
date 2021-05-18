@@ -3,7 +3,7 @@ package addr
 import (
 	"github.com/tchajed/goose/machine/disk"
 
-	"github.com/mit-pdos/goose-nfsd/common"
+	"github.com/mit-pdos/go-journal/common"
 )
 
 // Addr identifies the start of a disk object.
