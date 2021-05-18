@@ -1,10 +1,1 @@
 /Goose
-# created by benchmarking scripts
-nfs.out
-# compiled binaries
-fs-smallfile
-clnt-smallfile
-fs-largefile
-goose-nfsd
-# profiling output
-cpu.prof
