@@ -22,7 +22,7 @@ func (st *WalogState) memEnd() LogPosition {
 }
 
 type Walog struct {
-	memLock *sync.Mutex
+	memLock *sync.RWMutex
 	d       disk.Disk
 	circ    *circularAppender
 	st      *WalogState

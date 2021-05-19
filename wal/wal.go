@@ -13,7 +13,7 @@ import (
 
 func mkLog(disk disk.Disk) *Walog {
 	circ, start, end, memLog := recoverCircular(disk)
-	ml := new(sync.Mutex)
+	ml := new(sync.RWMutex)
 	st := &WalogState{
 		memLog:   mkSliding(memLog, start),
 		diskEnd:  end,
@@ -84,10 +84,10 @@ func (st *WalogState) readMem(blkno common.Bnum) (disk.Block, bool) {
 // Read from only the in-memory cached state (the unstable and logged parts of
 // the wal).
 func (l *Walog) ReadMem(blkno common.Bnum) (disk.Block, bool) {
-	l.memLock.Lock()
+	l.memLock.RLock()
 	blk, ok := l.st.readMem(blkno)
 	machine.Linearize()
-	l.memLock.Unlock()
+	l.memLock.RUnlock()
 	return blk, ok
 }
 
