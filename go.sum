@@ -28,13 +28,13 @@ github.com/stretchr/testify v1.6.1 h1:hDPOHmpOpP40lSULcqw7IrRb/u7w6RpDC9399XyoNd
 github.com/stretchr/testify v1.6.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/tchajed/goose v0.0.0-20191114201541-ebbf1d75c8ca/go.mod h1:2c33VcNcIHG8vQhprFmBlZxpC62+TfmnGjB+jVaKhXo=
 github.com/tchajed/goose v0.0.0-20200128225509-92a5cfe01fc4/go.mod h1:rhep/Jc/mYPoMIYG8dPtnc71UHAPHNYRx1qvpB245Ss=
-github.com/tchajed/goose v0.0.0-20210513163324-e3b4d6003b9a h1:lQ720f2V+waEkpNwDjpw2gecpTsJwCvJvkyLEl3quw8=
-github.com/tchajed/goose v0.0.0-20210513163324-e3b4d6003b9a/go.mod h1:Y2zBxxd3wa0lrYRDyebxZgbgV4LLsPUtsBiLe1wnS9c=
+github.com/tchajed/goose v0.2.0 h1:xot9FlV/Rp5zz2fB44nNlJB8RPRVrv8Sgiy4jZ90C3A=
+github.com/tchajed/goose v0.2.0/go.mod h1:Y2zBxxd3wa0lrYRDyebxZgbgV4LLsPUtsBiLe1wnS9c=
 github.com/tchajed/mailboat v0.0.0-20191026015926-338a5b81ac1d/go.mod h1:dmgNTEH0kreeKMWd+ntzsrp7ie2LWHGMe7VxP6d1Aew=
 github.com/tchajed/mailboat v0.2.0/go.mod h1:aKa/T1YCMVZFM2xbXnMNyp9r4k0pPni4+sJ8GoY51Hw=
 github.com/tchajed/marshal v0.0.0-20200707011626-0d2aa09818a9/go.mod h1:TPo3bTYJkH87/4rXlxe0bpVWLnN+b5kjJnoXHLBfdaA=
-github.com/tchajed/marshal v0.0.0-20210503163839-8f64c1688e77 h1:mmtUQ+jbYdsrp79JIEz0n44TbqnRACGaVbE+u0JOufk=
-github.com/tchajed/marshal v0.0.0-20210503163839-8f64c1688e77/go.mod h1:TPo3bTYJkH87/4rXlxe0bpVWLnN+b5kjJnoXHLBfdaA=
+github.com/tchajed/marshal v0.1.0 h1:PWlQivQOw2/zq12ungtkppOuA8uONeeU9QOl95AU1uk=
+github.com/tchajed/marshal v0.1.0/go.mod h1:jq2B5uP+QvY51sZB57Td/OsareaZEzm3HVuvVKhC22I=
 golang.org/x/sys v0.0.0-20190222072716-a9d3bda3a223/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
 golang.org/x/sys v0.0.0-20191008105621-543471e840be/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20191026070338-33540a1f6037/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
