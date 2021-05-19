@@ -24,14 +24,15 @@ type Log struct {
 	pos wal.LogPosition // highest un-flushed log position
 }
 
-// MkTxn recovers the txn system (or initializes from an all-zero disk).
-func MkTxn(d disk.Disk) *Log {
-	txn := &Log{
+// MkLog recovers the object logging system
+// (or initializes from an all-zero disk).
+func MkLog(d disk.Disk) *Log {
+	log := &Log{
 		mu:  new(sync.Mutex),
 		log: wal.MkLog(d),
 		pos: wal.LogPosition(0),
 	}
-	return txn
+	return log
 }
 
 // Read a disk object into buf

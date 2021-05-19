@@ -23,7 +23,7 @@ type TwoPhase struct {
 
 func Init(d disk.Disk) *TwoPhasePre {
 	twophasePre := &TwoPhasePre{
-		txn:   obj.MkTxn(d),
+		txn:   obj.MkLog(d),
 		locks: lockmap.MkLockMap(),
 	}
 	return twophasePre

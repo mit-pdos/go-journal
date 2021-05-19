@@ -17,7 +17,7 @@ func mkBlock(b0 byte) disk.Block {
 
 func TestRepBlock(t *testing.T) {
 	d := disk.NewMemDisk(1000)
-	tx := obj.MkTxn(d)
+	tx := obj.MkLog(d)
 	rb := Open(tx, 514)
 	ok := rb.Write(mkBlock(1))
 	assert.True(t, ok, "write txn should succeed")
@@ -31,13 +31,13 @@ func TestRepBlock(t *testing.T) {
 
 func TestRepBlockRecovery(t *testing.T) {
 	d := disk.NewMemDisk(1000)
-	tx := obj.MkTxn(d)
+	tx := obj.MkLog(d)
 	rb := Open(tx, 514)
 	ok := rb.Write(mkBlock(1))
 	assert.True(t, ok, "write txn should succeed")
 	tx.Shutdown()
 
-	tx2 := obj.MkTxn(d)
+	tx2 := obj.MkLog(d)
 	rb2 := Open(tx2, 514)
 	b, _ := rb2.Read()
 	assert.Equal(t, byte(1), b[0], "rep block should be crash safe")
