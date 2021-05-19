@@ -54,7 +54,10 @@ func (l *Log) installBufsMap(bufs []*buf.Buf) (map[common.Bnum][]byte, []common.
 
 	blknolist := make([]common.Bnum, 0, len(bufs))
 	for _, b := range bufs {
-		blknolist = append(blknolist, b.Addr.Blkno)
+		// No need to lock bufs with full blocks, as we already have exclusive ownership
+		if b.Sz != common.NBITBLOCK {
+			blknolist = append(blknolist, b.Addr.Blkno)
+		}
 	}
 
 	util.DPrintf(3, "installBufsMap: %v\n", blknolist)
