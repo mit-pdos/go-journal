@@ -61,23 +61,25 @@ func (l *Log) installBufsMap(bufs []*buf.Buf) (map[common.Bnum][]byte, []common.
 	}
 
 	util.DPrintf(3, "installBufsMap: %v\n", blknolist)
-
-	// TODO: Make a helper function for sorting & making uniq
-	sort.Slice(blknolist, func (i, j int) bool { return blknolist[i] < blknolist[j] })
 	blknolist_uniq := make([]common.Bnum, 0, len(blknolist))
-	blknolist_uniq = append(blknolist_uniq, blknolist[0])
-	var last = blknolist[0]
-	for _, bno := range blknolist {
-		if bno != last {
-			blknolist_uniq = append(blknolist_uniq, bno)
-			last = bno
-		}
-	}
-	util.DPrintf(3, "installBufsMap: %v\n", blknolist_uniq)
 
-	for _, bno := range blknolist_uniq {
-		util.DPrintf(4, "installBufsMap: Locking %v\n", bno)
-		l.locks.Acquire(bno)
+	if len(blknolist) > 0 {
+		// TODO: Make a helper function for sorting & making uniq
+		sort.Slice(blknolist, func (i, j int) bool { return blknolist[i] < blknolist[j] })
+		blknolist_uniq = append(blknolist_uniq, blknolist[0])
+		var last = blknolist[0]
+		for _, bno := range blknolist {
+			if bno != last {
+				blknolist_uniq = append(blknolist_uniq, bno)
+				last = bno
+			}
+		}
+		util.DPrintf(3, "installBufsMap: %v\n", blknolist_uniq)
+
+		for _, bno := range blknolist_uniq {
+			util.DPrintf(4, "installBufsMap: Locking %v\n", bno)
+			l.locks.Acquire(bno)
+		}
 	}
 
 	for _, b := range bufs {
