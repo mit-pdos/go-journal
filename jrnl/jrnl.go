@@ -31,13 +31,18 @@
 package jrnl
 
 import (
-	"github.com/tchajed/goose/machine/disk"
-
 	"github.com/mit-pdos/go-journal/addr"
 	"github.com/mit-pdos/go-journal/buf"
 	"github.com/mit-pdos/go-journal/obj"
 	"github.com/mit-pdos/go-journal/util"
 )
+
+// LogBlocks is the maximum number of blocks that can be written in one
+// operation
+const LogBlocks uint64 = 511
+
+// LogBytes is the maximum size of an operation, in bytes
+const LogBytes uint64 = 4096 * 511
 
 // Op is an in-progress journal operation.
 //
@@ -91,16 +96,6 @@ func (op *Op) OverWrite(addr addr.Addr, sz uint64, data []byte) {
 // safety.
 func (op *Op) NDirty() uint64 {
 	return op.bufs.Ndirty()
-}
-
-// LogSz returns 511
-func (op *Op) LogSz() uint64 {
-	return op.log.LogSz()
-}
-
-// LogSzBytes returns 511*4096
-func (op *Op) LogSzBytes() uint64 {
-	return op.log.LogSz() * disk.BlockSize
 }
 
 // CommitWait commits the writes in the transaction to disk.
