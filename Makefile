@@ -1,5 +1,5 @@
 GOPATH		:= $(shell go env GOPATH)
-GOOSE_DIRS	:= buf util common addr wal alloc jrnl obj lockmap jrnl_replication
+GOOSE_DIRS	:= buf util common addr wal alloc jrnl obj lockmap jrnl_replication txn
 
 COQ_PKGDIR := Goose/github_com/mit_pdos/go_journal
 
