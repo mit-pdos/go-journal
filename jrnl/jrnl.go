@@ -3,7 +3,7 @@
 // It provides atomic operations that are buffered locally and manipulate
 // objects via buffers of type *buf.Buf.
 //
-// The caller uses this interface by beginning an operation BufTxn,
+// The caller uses this interface by beginning an operation Op,
 // reading/writing within the transaction, and finally committing the buffered
 // transaction.
 //
@@ -39,14 +39,19 @@ import (
 	"github.com/mit-pdos/go-journal/util"
 )
 
-type BufTxn struct {
+// Op is an in-progress journal operation.
+//
+// Call CommitWait to persist the operation's writes.
+// To abort the operation simply stop using it.
+type Op struct {
 	log  *obj.Log
-	bufs *buf.BufMap // map of bufs read/written by this transaction
+	bufs *buf.BufMap // map of bufs read/written by this operation
 }
 
-// Begin starts a local transaction with no writes from a global object manager.
-func Begin(log *obj.Log) *BufTxn {
-	trans := &BufTxn{
+// Begin starts a local journal operation with no writes from a global object
+// manager.
+func Begin(log *obj.Log) *Op {
+	trans := &Op{
 		log:  log,
 		bufs: buf.MkBufMap(),
 	}
@@ -54,7 +59,7 @@ func Begin(log *obj.Log) *BufTxn {
 	return trans
 }
 
-func (op *BufTxn) ReadBuf(addr addr.Addr, sz uint64) *buf.Buf {
+func (op *Op) ReadBuf(addr addr.Addr, sz uint64) *buf.Buf {
 	b := op.bufs.Lookup(addr)
 	if b == nil {
 		buf := op.log.Load(addr, sz)
@@ -65,7 +70,7 @@ func (op *BufTxn) ReadBuf(addr addr.Addr, sz uint64) *buf.Buf {
 }
 
 // OverWrite writes an object to addr
-func (op *BufTxn) OverWrite(addr addr.Addr, sz uint64, data []byte) {
+func (op *Op) OverWrite(addr addr.Addr, sz uint64, data []byte) {
 	var b = op.bufs.Lookup(addr)
 	if b == nil {
 		b = buf.MkBuf(addr, sz, data)
@@ -84,17 +89,17 @@ func (op *BufTxn) OverWrite(addr addr.Addr, sz uint64, data []byte) {
 //
 // The caller cannot rely on any particular properties of this function for
 // safety.
-func (op *BufTxn) NDirty() uint64 {
+func (op *Op) NDirty() uint64 {
 	return op.bufs.Ndirty()
 }
 
 // LogSz returns 511
-func (op *BufTxn) LogSz() uint64 {
+func (op *Op) LogSz() uint64 {
 	return op.log.LogSz()
 }
 
 // LogSzBytes returns 511*4096
-func (op *BufTxn) LogSzBytes() uint64 {
+func (op *Op) LogSzBytes() uint64 {
 	return op.log.LogSz() * disk.BlockSize
 }
 
@@ -109,13 +114,13 @@ func (op *BufTxn) LogSzBytes() uint64 {
 //
 // wait=false is an asynchronous commit, which can be made durable later with
 // Flush.
-func (op *BufTxn) CommitWait(wait bool) bool {
+func (op *Op) CommitWait(wait bool) bool {
 	util.DPrintf(3, "Commit %p w %v\n", op, wait)
 	ok := op.log.CommitWait(op.bufs.DirtyBufs(), wait)
 	return ok
 }
 
-func (op *BufTxn) Flush() bool {
+func (op *Op) Flush() bool {
 	ok := op.log.Flush()
 	return ok
 }
