@@ -11,8 +11,10 @@ import (
 	"github.com/mit-pdos/go-journal/common"
 	"github.com/mit-pdos/go-journal/util"
 	"github.com/mit-pdos/go-journal/wal"
+	"github.com/mit-pdos/go-journal/lockmap"
 
 	"sync"
+	"sort"
 )
 
 // Log mediates access to object loading and installation.
@@ -22,6 +24,7 @@ type Log struct {
 	mu  *sync.Mutex
 	log *wal.Walog
 	pos wal.LogPosition // highest un-flushed log position
+	locks    *lockmap.LockMap
 }
 
 // MkLog recovers the object logging system
@@ -31,6 +34,7 @@ func MkLog(d disk.Disk) *Log {
 		mu:  new(sync.Mutex),
 		log: wal.MkLog(d),
 		pos: wal.LogPosition(0),
+		locks: lockmap.MkLockMap(),
 	}
 	return log
 }
@@ -45,8 +49,33 @@ func (l *Log) Load(addr addr.Addr, sz uint64) *buf.Buf {
 // Installs bufs into their blocks and returns the blocks.
 // A buf may only partially update a disk block and several bufs may
 // apply to the same disk block. Assume caller holds commit lock.
-func (l *Log) installBufsMap(bufs []*buf.Buf) map[common.Bnum][]byte {
+func (l *Log) installBufsMap(bufs []*buf.Buf) (map[common.Bnum][]byte, []common.Bnum) {
 	blks := make(map[common.Bnum][]byte)
+
+	blknolist := make([]common.Bnum, 0, len(bufs))
+	for _, b := range bufs {
+		blknolist = append(blknolist, b.Addr.Blkno)
+	}
+
+	util.DPrintf(3, "installBufsMap: %v\n", blknolist)
+
+	// TODO: Make a helper function for sorting & making uniq
+	sort.Slice(blknolist, func (i, j int) bool { return blknolist[i] < blknolist[j] })
+	blknolist_uniq := make([]common.Bnum, 0, len(blknolist))
+	blknolist_uniq = append(blknolist_uniq, blknolist[0])
+	var last = blknolist[0]
+	for _, bno := range blknolist {
+		if bno != last {
+			blknolist_uniq = append(blknolist_uniq, bno)
+			last = bno
+		}
+	}
+	util.DPrintf(3, "installBufsMap: %v\n", blknolist_uniq)
+
+	for _, bno := range blknolist_uniq {
+		util.DPrintf(4, "installBufsMap: Locking %v\n", bno)
+		l.locks.Acquire(bno)
+	}
 
 	for _, b := range bufs {
 		if b.Sz == common.NBITBLOCK {
@@ -57,6 +86,7 @@ func (l *Log) installBufsMap(bufs []*buf.Buf) map[common.Bnum][]byte {
 			if ok {
 				blk = mapblk
 			} else {
+				util.DPrintf(4, "installBufsMap: Reading %v\n", b.Addr.Blkno)
 				blk = l.log.Read(b.Addr.Blkno)
 				blks[b.Addr.Blkno] = blk
 			}
@@ -64,33 +94,36 @@ func (l *Log) installBufsMap(bufs []*buf.Buf) map[common.Bnum][]byte {
 		}
 	}
 
-	return blks
+	return blks, blknolist_uniq
 }
 
-func (l *Log) installBufs(bufs []*buf.Buf) []wal.Update {
+func (l *Log) installBufs(bufs []*buf.Buf) ([]wal.Update, []common.Bnum) {
 	var blks []wal.Update
-	bufmap := l.installBufsMap(bufs)
+	bufmap, acquired := l.installBufsMap(bufs)
 	for blkno, data := range bufmap {
 		blks = append(blks, wal.MkBlockData(blkno, data))
 	}
-	return blks
+	return blks, acquired
 }
 
 // Acquires the commit log, installs the buffers into their
 // blocks, and appends the blocks to the in-memory log.
 func (l *Log) doCommit(bufs []*buf.Buf) (wal.LogPosition, bool) {
-	l.mu.Lock()
 
-	blks := l.installBufs(bufs)
+	blks, acquired := l.installBufs(bufs)
 
 	util.DPrintf(3, "doCommit: %v bufs\n", len(blks))
 
+	l.mu.Lock()
 	n, ok := l.log.MemAppend(blks)
 	// FIXME: should only be set if ok
 	l.pos = n
-
 	l.mu.Unlock()
 
+	for _, blkno := range acquired {
+		util.DPrintf(4, "doCommit: Releasing %v\n", blkno)
+		l.locks.Release(blkno)
+	}
 	return n, ok
 }
 
