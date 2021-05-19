@@ -1,7 +1,11 @@
-// buftxn manages "buffer"-based transactions
+// Package jrnl is the top-level journal API.
 //
-// The caller uses this interface by creating a BufTxn, reading/writing within
-// the transaction, and finally committing the buffered transaction.
+// It provides atomic operations that are buffered locally and manipulate
+// objects via buffers of type *buf.Buf.
+//
+// The caller uses this interface by beginning an operation BufTxn,
+// reading/writing within the transaction, and finally committing the buffered
+// transaction.
 //
 // Note that while the API has reads and writes, these are not the usual database
 // read/write transactions. Only writes are made atomic and visible atomically;
@@ -24,49 +28,49 @@
 // The file system realizes this schema fairly simply, since the disk is simply
 // partitioned into inodes, data blocks, and bitmap allocators for each (sized
 // appropriately), all allocated statically.
-package buftxn
+package jrnl
 
 import (
 	"github.com/tchajed/goose/machine/disk"
 
 	"github.com/mit-pdos/go-journal/addr"
 	"github.com/mit-pdos/go-journal/buf"
-	"github.com/mit-pdos/go-journal/txn"
+	"github.com/mit-pdos/go-journal/obj"
 	"github.com/mit-pdos/go-journal/util"
 )
 
 type BufTxn struct {
-	txn  *txn.Txn
+	log  *obj.Log
 	bufs *buf.BufMap // map of bufs read/written by this transaction
 }
 
-// Start a local transaction with no writes from a global Txn manager.
-func Begin(txn *txn.Txn) *BufTxn {
+// Begin starts a local transaction with no writes from a global object manager.
+func Begin(log *obj.Log) *BufTxn {
 	trans := &BufTxn{
-		txn:  txn,
+		log:  log,
 		bufs: buf.MkBufMap(),
 	}
 	util.DPrintf(3, "Begin: %v\n", trans)
 	return trans
 }
 
-func (buftxn *BufTxn) ReadBuf(addr addr.Addr, sz uint64) *buf.Buf {
-	b := buftxn.bufs.Lookup(addr)
+func (op *BufTxn) ReadBuf(addr addr.Addr, sz uint64) *buf.Buf {
+	b := op.bufs.Lookup(addr)
 	if b == nil {
-		buf := buftxn.txn.Load(addr, sz)
-		buftxn.bufs.Insert(buf)
-		return buftxn.bufs.Lookup(addr)
+		buf := op.log.Load(addr, sz)
+		op.bufs.Insert(buf)
+		return op.bufs.Lookup(addr)
 	}
 	return b
 }
 
 // OverWrite writes an object to addr
-func (buftxn *BufTxn) OverWrite(addr addr.Addr, sz uint64, data []byte) {
-	var b = buftxn.bufs.Lookup(addr)
+func (op *BufTxn) OverWrite(addr addr.Addr, sz uint64, data []byte) {
+	var b = op.bufs.Lookup(addr)
 	if b == nil {
 		b = buf.MkBuf(addr, sz, data)
 		b.SetDirty()
-		buftxn.bufs.Insert(b)
+		op.bufs.Insert(b)
 	} else {
 		if sz != b.Sz {
 			panic("overwrite")
@@ -80,18 +84,18 @@ func (buftxn *BufTxn) OverWrite(addr addr.Addr, sz uint64, data []byte) {
 //
 // The caller cannot rely on any particular properties of this function for
 // safety.
-func (buftxn *BufTxn) NDirty() uint64 {
-	return buftxn.bufs.Ndirty()
+func (op *BufTxn) NDirty() uint64 {
+	return op.bufs.Ndirty()
 }
 
 // LogSz returns 511
-func (buftxn *BufTxn) LogSz() uint64 {
-	return buftxn.txn.LogSz()
+func (op *BufTxn) LogSz() uint64 {
+	return op.log.LogSz()
 }
 
 // LogSzBytes returns 511*4096
-func (buftxn *BufTxn) LogSzBytes() uint64 {
-	return buftxn.txn.LogSz() * disk.BlockSize
+func (op *BufTxn) LogSzBytes() uint64 {
+	return op.log.LogSz() * disk.BlockSize
 }
 
 // CommitWait commits the writes in the transaction to disk.
@@ -105,13 +109,13 @@ func (buftxn *BufTxn) LogSzBytes() uint64 {
 //
 // wait=false is an asynchronous commit, which can be made durable later with
 // Flush.
-func (buftxn *BufTxn) CommitWait(wait bool) bool {
-	util.DPrintf(3, "Commit %p w %v\n", buftxn, wait)
-	ok := buftxn.txn.CommitWait(buftxn.bufs.DirtyBufs(), wait)
+func (op *BufTxn) CommitWait(wait bool) bool {
+	util.DPrintf(3, "Commit %p w %v\n", op, wait)
+	ok := op.log.CommitWait(op.bufs.DirtyBufs(), wait)
 	return ok
 }
 
-func (buftxn *BufTxn) Flush() bool {
-	ok := buftxn.txn.Flush()
+func (op *BufTxn) Flush() bool {
+	ok := op.log.Flush()
 	return ok
 }

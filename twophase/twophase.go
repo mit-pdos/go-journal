@@ -4,35 +4,35 @@ import (
 	"github.com/tchajed/goose/machine/disk"
 
 	"github.com/mit-pdos/go-journal/addr"
-	"github.com/mit-pdos/go-journal/buftxn"
+	"github.com/mit-pdos/go-journal/jrnl"
 	"github.com/mit-pdos/go-journal/lockmap"
-	"github.com/mit-pdos/go-journal/txn"
+	"github.com/mit-pdos/go-journal/obj"
 	"github.com/mit-pdos/go-journal/util"
 )
 
 type TwoPhasePre struct {
-	txn   *txn.Txn
+	txn   *obj.Log
 	locks *lockmap.LockMap
 }
 
 type TwoPhase struct {
-	buftxn   *buftxn.BufTxn
+	buftxn   *jrnl.BufTxn
 	locks    *lockmap.LockMap
 	acquired map[uint64]bool
 }
 
 func Init(d disk.Disk) *TwoPhasePre {
 	twophasePre := &TwoPhasePre{
-		txn:   txn.MkTxn(d),
+		txn:   obj.MkTxn(d),
 		locks: lockmap.MkLockMap(),
 	}
 	return twophasePre
 }
 
-// Start a local transaction with no writes from a global Txn manager.
+// Start a local transaction with no writes from a global Log manager.
 func Begin(twophasePre *TwoPhasePre) *TwoPhase {
 	trans := &TwoPhase{
-		buftxn:   buftxn.Begin(twophasePre.txn),
+		buftxn:   jrnl.Begin(twophasePre.txn),
 		locks:    twophasePre.locks,
 		acquired: make(map[uint64]bool),
 	}

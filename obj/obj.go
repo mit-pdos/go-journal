@@ -1,4 +1,7 @@
-package txn
+// Package obj atomically installs objects from  modified buffers in their
+// corresponding disk blocks and writes the blocks to the write-ahead log.  The
+// upper layers are responsible for locking and lock ordering.
+package obj
 
 import (
 	"github.com/tchajed/goose/machine/disk"
@@ -12,24 +15,18 @@ import (
 	"sync"
 )
 
+// Log mediates access to object loading and installation.
 //
-// txn atomically installs modified buffers in their corresponding
-// disk blocks and writes the blocks to the write-ahead log.  The
-// upper layers are responsible for locking and lock ordering.
-//
-
-// Txn mediates access to the transaction system.
-//
-// There is only one Txn object.
-type Txn struct {
+// There is only one Log object.
+type Log struct {
 	mu  *sync.Mutex
 	log *wal.Walog
 	pos wal.LogPosition // highest un-flushed log position
 }
 
 // MkTxn recovers the txn system (or initializes from an all-zero disk).
-func MkTxn(d disk.Disk) *Txn {
-	txn := &Txn{
+func MkTxn(d disk.Disk) *Log {
+	txn := &Log{
 		mu:  new(sync.Mutex),
 		log: wal.MkLog(d),
 		pos: wal.LogPosition(0),
@@ -38,16 +35,16 @@ func MkTxn(d disk.Disk) *Txn {
 }
 
 // Read a disk object into buf
-func (txn *Txn) Load(addr addr.Addr, sz uint64) *buf.Buf {
-	blk := txn.log.Read(addr.Blkno)
+func (l *Log) Load(addr addr.Addr, sz uint64) *buf.Buf {
+	blk := l.log.Read(addr.Blkno)
 	b := buf.MkBufLoad(addr, sz, blk)
 	return b
 }
 
-// Installs the txn's bufs into their blocks and returns the blocks.
+// Installs bufs into their blocks and returns the blocks.
 // A buf may only partially update a disk block and several bufs may
 // apply to the same disk block. Assume caller holds commit lock.
-func (txn *Txn) installBufsMap(bufs []*buf.Buf) map[common.Bnum][]byte {
+func (l *Log) installBufsMap(bufs []*buf.Buf) map[common.Bnum][]byte {
 	blks := make(map[common.Bnum][]byte)
 
 	for _, b := range bufs {
@@ -59,7 +56,7 @@ func (txn *Txn) installBufsMap(bufs []*buf.Buf) map[common.Bnum][]byte {
 			if ok {
 				blk = mapblk
 			} else {
-				blk = txn.log.Read(b.Addr.Blkno)
+				blk = l.log.Read(b.Addr.Blkno)
 				blks[b.Addr.Blkno] = blk
 			}
 			b.Install(blk)
@@ -69,44 +66,44 @@ func (txn *Txn) installBufsMap(bufs []*buf.Buf) map[common.Bnum][]byte {
 	return blks
 }
 
-func (txn *Txn) installBufs(bufs []*buf.Buf) []wal.Update {
+func (l *Log) installBufs(bufs []*buf.Buf) []wal.Update {
 	var blks []wal.Update
-	bufmap := txn.installBufsMap(bufs)
+	bufmap := l.installBufsMap(bufs)
 	for blkno, data := range bufmap {
 		blks = append(blks, wal.MkBlockData(blkno, data))
 	}
 	return blks
 }
 
-// Acquires the commit log, installs the txn's buffers into their
+// Acquires the commit log, installs the buffers into their
 // blocks, and appends the blocks to the in-memory log.
-func (txn *Txn) doCommit(bufs []*buf.Buf) (wal.LogPosition, bool) {
-	txn.mu.Lock()
+func (l *Log) doCommit(bufs []*buf.Buf) (wal.LogPosition, bool) {
+	l.mu.Lock()
 
-	blks := txn.installBufs(bufs)
+	blks := l.installBufs(bufs)
 
 	util.DPrintf(3, "doCommit: %v bufs\n", len(blks))
 
-	n, ok := txn.log.MemAppend(blks)
+	n, ok := l.log.MemAppend(blks)
 	// FIXME: should only be set if ok
-	txn.pos = n
+	l.pos = n
 
-	txn.mu.Unlock()
+	l.mu.Unlock()
 
 	return n, ok
 }
 
 // Commit dirty bufs of the transaction into the log, and perhaps wait.
-func (txn *Txn) CommitWait(bufs []*buf.Buf, wait bool) bool {
+func (l *Log) CommitWait(bufs []*buf.Buf, wait bool) bool {
 	var commit = true
 	if len(bufs) > 0 {
-		n, ok := txn.doCommit(bufs)
+		n, ok := l.doCommit(bufs)
 		if !ok {
 			util.DPrintf(10, "memappend failed; log is too small\n")
 			commit = false
 		} else {
 			if wait {
-				txn.log.Flush(n)
+				l.log.Flush(n)
 			}
 		}
 	} else {
@@ -116,20 +113,20 @@ func (txn *Txn) CommitWait(bufs []*buf.Buf, wait bool) bool {
 }
 
 // NOTE: this is coarse-grained and unattached to the transaction ID
-func (txn *Txn) Flush() bool {
-	txn.mu.Lock()
-	pos := txn.pos
-	txn.mu.Unlock()
+func (l *Log) Flush() bool {
+	l.mu.Lock()
+	pos := l.pos
+	l.mu.Unlock()
 
-	txn.log.Flush(pos)
+	l.log.Flush(pos)
 	return true
 }
 
 // LogSz returns 511 (the size of the wal log)
-func (txn *Txn) LogSz() uint64 {
+func (l *Log) LogSz() uint64 {
 	return wal.LOGSZ
 }
 
-func (txn *Txn) Shutdown() {
-	txn.log.Shutdown()
+func (l *Log) Shutdown() {
+	l.log.Shutdown()
 }
