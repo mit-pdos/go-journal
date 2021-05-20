@@ -4,6 +4,7 @@ import (
 	"github.com/tchajed/goose/machine/disk"
 
 	"github.com/mit-pdos/go-journal/common"
+	"github.com/mit-pdos/go-journal/shardmap"
 
 	"sync"
 )
@@ -26,7 +27,8 @@ type Walog struct {
 	d       disk.Disk
 	circ    *circularAppender
 	st      *WalogState
-
+	bmap    *shardmap.BlockMap
+	
 	condLogger  *sync.Cond
 	condInstall *sync.Cond
 

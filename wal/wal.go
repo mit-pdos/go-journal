@@ -6,6 +6,7 @@ import (
 	"github.com/tchajed/goose/machine"
 
 	"github.com/tchajed/goose/machine/disk"
+	"github.com/mit-pdos/go-journal/shardmap"
 
 	"github.com/mit-pdos/go-journal/common"
 	"github.com/mit-pdos/go-journal/util"
@@ -14,6 +15,7 @@ import (
 func mkLog(disk disk.Disk) *Walog {
 	circ, start, end, memLog := recoverCircular(disk)
 	ml := new(sync.Mutex)
+	bmap := shardmap.MkBlockMap()
 	st := &WalogState{
 		memLog:   mkSliding(memLog, start),
 		diskEnd:  end,
@@ -25,6 +27,7 @@ func mkLog(disk disk.Disk) *Walog {
 		circ:        circ,
 		memLock:     ml,
 		st:          st,
+		bmap:        bmap,
 		condLogger:  sync.NewCond(ml),
 		condInstall: sync.NewCond(ml),
 		condShut:    sync.NewCond(ml),
@@ -70,6 +73,7 @@ func copyUpdateBlock(u Update) disk.Block {
 }
 
 // readMem implements ReadMem, assuming memLock is held
+/*
 func (st *WalogState) readMem(blkno common.Bnum) (disk.Block, bool) {
 	pos, ok := st.memLog.posForAddr(blkno)
 	if ok {
@@ -80,14 +84,12 @@ func (st *WalogState) readMem(blkno common.Bnum) (disk.Block, bool) {
 	}
 	return nil, false
 }
+*/
 
 // Read from only the in-memory cached state (the unstable and logged parts of
 // the wal).
 func (l *Walog) ReadMem(blkno common.Bnum) (disk.Block, bool) {
-	l.memLock.Lock()
-	blk, ok := l.st.readMem(blkno)
-	machine.Linearize()
-	l.memLock.Unlock()
+	blk, ok := l.bmap.Read(blkno)
 	return blk, ok
 }
 
@@ -134,6 +136,7 @@ func (l *Walog) MemAppend(bufs []Update) (LogPosition, bool) {
 
 	var txn LogPosition = 0
 	var ok = true
+	l.bmap.MultiWrite(bufs)
 	l.memLock.Lock()
 	st := l.st
 	for {

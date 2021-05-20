@@ -24,3 +24,9 @@ const (
 	ROOTINUM Inum = 1
 	NULLBNUM Bnum = 0
 )
+
+
+type Update struct {
+	Addr  Bnum
+	Block disk.Block
+}

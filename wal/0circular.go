@@ -9,11 +9,7 @@ import (
 )
 
 type LogPosition uint64
-
-type Update struct {
-	Addr  common.Bnum
-	Block disk.Block
-}
+type Update = common.Update
 
 func MkBlockData(bn common.Bnum, blk disk.Block) Update {
 	b := Update{Addr: bn, Block: blk}
