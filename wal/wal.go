@@ -16,6 +16,7 @@ func mkLog(disk disk.Disk) *Walog {
 	circ, start, end, memLog := recoverCircular(disk)
 	ml := new(sync.Mutex)
 	bmap := shardmap.MkBlockMap()
+	bmap.MultiWrite(memLog)
 	st := &WalogState{
 		memLog:   mkSliding(memLog, start),
 		diskEnd:  end,
