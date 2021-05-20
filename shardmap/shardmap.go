@@ -54,8 +54,8 @@ func (bmap *BlockMap) Read(addr uint64) (disk.Block, bool) {
 	shard := bmap.GetShard(addr)
 	shard.mu.RLock()
 	blk0, ok := shard.state[addr]
-	blk := util.CloneByteSlice(blk0)
 	shard.mu.RUnlock()
+	blk := util.CloneByteSlice(blk0)
 	return blk, ok
 }
 
