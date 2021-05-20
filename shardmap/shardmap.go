@@ -59,14 +59,22 @@ func (bmap *BlockMap) Read(addr uint64) (disk.Block, bool) {
 	return blk, ok
 }
 
-func (bmap *BlockMap) Write(addr uint64, blk disk.Block) {
+func (bmap *BlockMap) Write(addr uint64, blk0 disk.Block) {
 	shard := bmap.GetShard(addr)
+	blk := util.CloneByteSlice(blk0)
 	shard.mu.Lock()
 	shard.state[addr] = blk
 	shard.mu.Unlock()
 }
 
 func (bmap *BlockMap) MultiWrite(bufs []common.Update) {
+	for _, u := range bufs {
+		bmap.Write(u.Addr, u.Block)
+	}
+}
+
+// Probably not needed
+func (bmap *BlockMap) AtomicMultiWrite(bufs []common.Update) {
 	shardnolist := make([]uint64, 0, len(bufs))
 	for _, b := range bufs {
 		shardnolist = append(shardnolist, bmap.GetShardNo(b.Addr))
@@ -94,7 +102,7 @@ func (bmap *BlockMap) MultiWrite(bufs []common.Update) {
 	// Write
 	for _, buf := range bufs {
 		shard := bmap.GetShard(buf.Addr)
-		shard.state[buf.Addr] = buf.Block
+		shard.state[buf.Addr] = util.CloneByteSlice(buf.Block)
 	}
 
 	// Release all
