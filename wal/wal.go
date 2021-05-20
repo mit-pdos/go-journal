@@ -136,7 +136,6 @@ func (l *Walog) MemAppend(bufs []Update) (LogPosition, bool) {
 
 	var txn LogPosition = 0
 	var ok = true
-	l.bmap.MultiWrite(bufs)
 	l.memLock.Lock()
 	st := l.st
 	for {
@@ -145,6 +144,7 @@ func (l *Walog) MemAppend(bufs []Update) (LogPosition, bool) {
 			break
 		}
 		if st.memLogHasSpace(uint64(len(bufs))) {
+			l.bmap.MultiWrite(bufs)
 			txn = doMemAppend(st.memLog, bufs)
 			machine.Linearize()
 			break
