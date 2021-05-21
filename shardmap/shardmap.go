@@ -59,9 +59,8 @@ func (bmap *BlockMap) Read(addr uint64) (disk.Block, bool) {
 	return blk, ok
 }
 
-func (bmap *BlockMap) Write(addr uint64, blk0 disk.Block) {
+func (bmap *BlockMap) Write(addr uint64, blk disk.Block) {
 	shard := bmap.GetShard(addr)
-	blk := util.CloneByteSlice(blk0)
 	shard.mu.Lock()
 	shard.state[addr] = blk
 	shard.mu.Unlock()
