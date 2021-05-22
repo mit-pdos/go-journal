@@ -63,8 +63,8 @@ func recoverCircular(d disk.Disk) (*circularAppender, LogPosition, LogPosition, 
 	}, LogPosition(start), LogPosition(end), bufs
 }
 
-func (c *circularAppender) hdr1(end LogPosition) disk.Block {
-	enc := marshal.NewEnc(disk.BlockSize)
+func (c *circularAppender) hdr1(end LogPosition, bhdr []byte) disk.Block {
+	enc := marshal.MakeEncFromSlice(bhdr)
 	enc.PutInt(uint64(end))
 	enc.PutInts(c.diskAddrs)
 	return enc.Finish()
@@ -88,12 +88,12 @@ func (c *circularAppender) logBlocks(d disk.Disk, end LogPosition, bufs []Update
 	}
 }
 
-func (c *circularAppender) Append(d disk.Disk, end LogPosition, bufs []Update) {
+func (c *circularAppender) Append(d disk.Disk, end LogPosition, bufs []Update, bhdr []byte) {
 	c.logBlocks(d, end, bufs)
 	d.Barrier()
 	// atomic installation
 	newEnd := end + LogPosition(len(bufs))
-	b := c.hdr1(newEnd)
+	b := c.hdr1(newEnd, bhdr)
 	d.Write(LOGHDR, b)
 	d.Barrier()
 }

@@ -26,7 +26,7 @@ func (l *Walog) waitForSpace() {
 //
 // Returns true if it made progress (for liveness, not important for
 // correctness).
-func (l *Walog) logAppend(circ *circularAppender) bool {
+func (l *Walog) logAppend(circ *circularAppender, bhdr []byte) bool {
 	l.waitForSpace()
 
 	diskEnd := l.st.diskEnd
@@ -36,7 +36,7 @@ func (l *Walog) logAppend(circ *circularAppender) bool {
 	}
 	l.memLock.Unlock()
 
-	circ.Append(l.d, diskEnd, newbufs)
+	circ.Append(l.d, diskEnd, newbufs, bhdr)
 
 	l.memLock.Lock()
 
@@ -53,11 +53,11 @@ func (l *Walog) logAppend(circ *circularAppender) bool {
 //
 // Operates by continuously polling for in-memory transactions, driven by
 // condLogger for scheduling
-func (l *Walog) logger(circ *circularAppender) {
+func (l *Walog) logger(circ *circularAppender, bhdr []byte) {
 	l.memLock.Lock()
 	l.st.nthread += 1
 	for !l.st.shutdown {
-		progress := l.logAppend(circ)
+		progress := l.logAppend(circ, bhdr)
 		if !progress {
 			l.condLogger.Wait()
 		}

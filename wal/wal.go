@@ -38,7 +38,7 @@ func mkLog(disk disk.Disk) *Walog {
 }
 
 func (l *Walog) startBackgroundThreads() {
-	go func() { l.logger(l.circ) }()
+	go func() { l.logger(l.circ, make([]byte, disk.BlockSize)) }()
 	go func() { l.installer() }()
 }
 
