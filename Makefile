@@ -12,7 +12,7 @@ check:
 goose-output: $(patsubst %,${COQ_PKGDIR}/%.v,$(GOOSE_DIRS))
 
 ${COQ_PKGDIR}/%.v: % %/*
-	$(GOPATH)/bin/goose -package github.com/mit-pdos/go-journal/$< -out Goose ./$<
+	$(GOPATH)/bin/goose -out Goose ./$<
 
 clean:
 	rm -rf Goose
