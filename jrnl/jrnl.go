@@ -114,8 +114,3 @@ func (op *Op) CommitWait(wait bool) bool {
 	ok := op.log.CommitWait(op.bufs.DirtyBufs(), wait)
 	return ok
 }
-
-func (op *Op) Flush() bool {
-	ok := op.log.Flush()
-	return ok
-}
