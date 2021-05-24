@@ -23,7 +23,7 @@ func data(sz int) []byte {
 	return d
 }
 
-const InodeSz uint64 = 8*128
+const InodeSz uint64 = 8 * 128
 
 func TestJrnlWriteRead(t *testing.T) {
 	d := disk.NewMemDisk(10000)
