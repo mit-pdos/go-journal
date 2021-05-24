@@ -64,7 +64,7 @@ func recoverCircular(d disk.Disk) (*circularAppender, LogPosition, LogPosition, 
 }
 
 func (c *circularAppender) hdr1(end LogPosition, bhdr []byte) disk.Block {
-	enc := marshal.MakeEncFromSlice(bhdr)
+	enc := marshal.NewEncFromSlice(bhdr)
 	enc.PutInt(uint64(end))
 	enc.PutInts(c.diskAddrs)
 	return enc.Finish()

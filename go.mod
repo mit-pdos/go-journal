@@ -5,8 +5,6 @@ go 1.14
 require (
 	github.com/stretchr/testify v1.6.1
 	github.com/tchajed/goose v0.2.0
-	github.com/tchajed/marshal v0.1.0
+	github.com/tchajed/marshal v0.2.0
 	golang.org/x/sys v0.0.0-20210514084401-e8d321eab015 // indirect
 )
-
-replace github.com/tchajed/marshal => github.com/jtassarotti/marshal v0.1.1-0.20210521223612-9454f987cf81
