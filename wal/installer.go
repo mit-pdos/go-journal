@@ -17,9 +17,9 @@ func (st *WalogState) cutMemLog(installEnd LogPosition) {
 
 // absorbBufs returns bufs' such that applyUpds(d, bufs') = applyUpds(d,
 // bufs) and bufs' has unique addresses
-func absorbBufs(bufs []Update) []Update {
-	s := mkSliding(nil, 0)
-	s.memWrite(bufs)
+func absorbBufs(addrs []uint64, bufs []disk.Block) ([]uint64, []disk.Block) {
+	s := mkSliding(nil, nil, 0)
+	s.memWrite2(addrs, bufs)
 	return s.intoMutable()
 }
 
@@ -31,11 +31,10 @@ func absorbBufs(bufs []Update) []Update {
 // (2) at all intermediate points,
 // the data region either has the value from the old transaction or the new
 // transaction (with all of bufs applied).
-func installBlocks(d disk.Disk, bufs []Update) {
-	absorbed := absorbBufs(bufs)
-	for i, buf := range absorbed {
-		blkno := buf.Addr
-		blk := buf.Block
+func installBlocks(d disk.Disk, addrs []uint64, bufs []disk.Block) {
+	addrs, absorbed := absorbBufs(addrs, bufs)
+	for i, blkno := range addrs {
+		blk := absorbed[i]
 		util.DPrintf(5, "installBlocks: write log block %d to %d\n", i, blkno)
 		d.Write(blkno, blk)
 	}
@@ -54,8 +53,8 @@ func installBlocks(d disk.Disk, bufs []Update) {
 // Installer holds memLock
 func (l *Walog) logInstall() (uint64, LogPosition) {
 	installEnd := l.st.diskEnd
-	bufs := l.st.memLog.takeTill(installEnd)
-	numBufs := uint64(len(bufs))
+	addrs, bufs := l.st.memLog.takeTill(installEnd)
+	numBufs := uint64(len(addrs))
 	if numBufs == 0 {
 		return 0, installEnd
 	}
@@ -63,7 +62,7 @@ func (l *Walog) logInstall() (uint64, LogPosition) {
 	l.memLock.Unlock()
 
 	util.DPrintf(5, "logInstall up to %d\n", installEnd)
-	installBlocks(l.d, bufs)
+	installBlocks(l.d, addrs, bufs)
 	l.d.Barrier()
 	Advance(l.d, installEnd)
 

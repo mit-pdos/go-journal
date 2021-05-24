@@ -72,6 +72,12 @@ func (bmap *BlockMap) MultiWrite(bufs []common.Update) {
 	}
 }
 
+func (bmap *BlockMap) MultiWrite2(addrs []uint64, bufs []disk.Block) {
+	for i, addr := range addrs {
+		bmap.Write(addr, bufs[i])
+	}
+}
+
 // Probably not needed
 func (bmap *BlockMap) AtomicMultiWrite(bufs []common.Update) {
 	shardnolist := make([]uint64, 0, len(bufs))

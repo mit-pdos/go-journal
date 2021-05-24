@@ -1,37 +1,42 @@
 package wal
 
 import (
+	"github.com/tchajed/goose/machine/disk"
 	"github.com/mit-pdos/go-journal/common"
 	"github.com/mit-pdos/go-journal/util"
 )
 
 type sliding struct {
-	log     []Update
+	addrlog     []uint64
+	blocklog    []disk.Block
 	start   LogPosition
 	mutable LogPosition
 	addrPos map[common.Bnum]LogPosition
 }
 
-func mkSliding(log []Update, start LogPosition) *sliding {
+func mkSliding(addrlog []uint64, blocklog []disk.Block, start LogPosition) *sliding {
 	addrPos := make(map[common.Bnum]LogPosition)
-	for i, buf := range log {
-		addrPos[buf.Addr] = start + LogPosition(i)
+	for i, addr := range addrlog {
+		addrPos[addr] = start + LogPosition(i)
 	}
 	return &sliding{
-		log:     log,
+		addrlog:  addrlog,
+		blocklog: blocklog,
 		start:   start,
-		mutable: start + LogPosition(len(log)),
+		mutable: start + LogPosition(len(addrlog)),
 		addrPos: addrPos,
 	}
 }
 
 func (s *sliding) end() LogPosition {
-	return s.start + LogPosition(len(s.log))
+	return s.start + LogPosition(len(s.addrlog))
 }
 
+/*
 func (s *sliding) get(pos LogPosition) Update {
 	return s.log[pos-s.start]
 }
+*/
 
 func (s *sliding) posForAddr(a common.Bnum) (LogPosition, bool) {
 	pos, ok := s.addrPos[a]
@@ -41,17 +46,18 @@ func (s *sliding) posForAddr(a common.Bnum) (LogPosition, bool) {
 // update does an in-place absorb of an update to u
 //
 // internal to sliding
-func (s *sliding) update(pos LogPosition, u Update) {
-	s.log[s.mutable-s.start:][pos-s.mutable] = u
+func (s *sliding) update(pos LogPosition, blk disk.Block) {
+	s.blocklog[s.mutable-s.start:][pos-s.mutable] = blk
 }
 
 // append writes an update that cannot be absorbed
 //
 // internal to sliding
-func (s *sliding) append(u Update) {
-	pos := s.start + LogPosition(len(s.log))
-	s.log = append(s.log, u)
-	s.addrPos[u.Addr] = pos
+func (s *sliding) append(addr uint64, blk disk.Block) {
+	pos := s.start + LogPosition(len(s.addrlog))
+	s.addrlog = append(s.addrlog, addr)
+	s.blocklog = append(s.blocklog, blk)
+	s.addrPos[addr] = pos
 }
 
 // Absorbs writes in in-memory transactions (avoiding those that might be in
@@ -67,7 +73,7 @@ func (s *sliding) memWrite(bufs []Update) {
 		if ok && oldpos >= s.mutable {
 			util.DPrintf(5, "memWrite: absorb %d pos %d old %d\n",
 				buf.Addr, pos, oldpos)
-			s.update(oldpos, buf)
+			s.update(oldpos, buf.Block)
 		} else {
 			if ok {
 				util.DPrintf(5, "memLogMap: replace %d pos %d old %d\n",
@@ -76,7 +82,32 @@ func (s *sliding) memWrite(bufs []Update) {
 				util.DPrintf(5, "memLogMap: add %d pos %d\n",
 					buf.Addr, pos)
 			}
-			s.append(buf)
+			s.append(buf.Addr, buf.Block)
+			pos += 1
+		}
+	}
+}
+
+/* FIXME */
+func (s *sliding) memWrite2(addrs []uint64, bufs []disk.Block) {
+	// pos is only for debugging
+	var pos = s.end()
+	for i, addr := range addrs {
+		// remember most recent position for Blkno
+		oldpos, ok := s.posForAddr(addr)
+		if ok && oldpos >= s.mutable {
+			util.DPrintf(5, "memWrite: absorb %d pos %d old %d\n",
+				addr, pos, oldpos)
+			s.update(oldpos, bufs[i])
+		} else {
+			if ok {
+				util.DPrintf(5, "memLogMap: replace %d pos %d old %d\n",
+					addr, pos, oldpos)
+			} else {
+				util.DPrintf(5, "memLogMap: add %d pos %d\n",
+					addr, pos)
+			}
+			s.append(addr, bufs[i])
 			pos += 1
 		}
 	}
@@ -84,34 +115,34 @@ func (s *sliding) memWrite(bufs []Update) {
 
 // takeFrom takes the read-only updates from a logical start position to the
 // current mutable boundary
-func (s *sliding) takeFrom(start LogPosition) []Update {
-	return s.log[:s.mutable-s.start][start-s.start:]
+func (s *sliding) takeFrom(start LogPosition) ([]uint64, []disk.Block) {
+	return s.addrlog[:s.mutable-s.start][start-s.start:], s.blocklog[:s.mutable-s.start][start-s.start:]
 }
 
 // takeTill takes the read-only updates till a logical start position (which
 // should be within the read-only region; that is, end <= s.mutable)
-func (s *sliding) takeTill(end LogPosition) []Update {
-	return s.log[:s.mutable-s.start][:end-s.start]
+func (s *sliding) takeTill(end LogPosition) ([]uint64, []disk.Block) {
+	return s.addrlog[:s.mutable-s.start][:end-s.start], s.blocklog[:s.mutable-s.start][:end-s.start]
 }
 
-func (s *sliding) intoMutable() []Update {
-	return s.log[s.mutable-s.start:]
+func (s *sliding) intoMutable() ([]uint64, []disk.Block) {
+	return s.addrlog[s.mutable-s.start:], s.blocklog[s.mutable-s.start:]
 }
 
 // deleteFrom deletes read-only updates up to newStart,
 // correctly updating the start position
 func (s *sliding) deleteFrom(newStart LogPosition) {
 	start := s.start
-	for i, u := range s.log[:s.mutable-start][:newStart-start] {
+	for i, blkno := range s.addrlog[:s.mutable-start][:newStart-start] {
 		pos := start + LogPosition(i)
-		blkno := u.Addr
 		oldPos, ok := s.addrPos[blkno]
 		if ok && oldPos <= pos {
 			util.DPrintf(5, "memLogMap: del %d %d\n", blkno, oldPos)
 			delete(s.addrPos, blkno)
 		}
 	}
-	s.log = s.log[newStart-start:]
+	s.addrlog = s.addrlog[newStart-start:]
+	s.blocklog = s.blocklog[newStart-start:]
 	s.start = newStart
 }
 

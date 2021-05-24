@@ -5,7 +5,6 @@ import (
 	"github.com/tchajed/marshal"
 
 	"github.com/mit-pdos/go-journal/common"
-	"github.com/mit-pdos/go-journal/util"
 )
 
 type LogPosition uint64
@@ -47,20 +46,22 @@ func decodeHdr2(hdr2 disk.Block) uint64 {
 	return start
 }
 
-func recoverCircular(d disk.Disk) (*circularAppender, LogPosition, LogPosition, []Update) {
+func recoverCircular(d disk.Disk) (*circularAppender, LogPosition, LogPosition, []uint64, []disk.Block) {
 	hdr1 := d.Read(LOGHDR)
 	hdr2 := d.Read(LOGHDR2)
 	end, addrs := decodeHdr1(hdr1)
 	start := decodeHdr2(hdr2)
-	var bufs []Update
+	var memaddrs []uint64
+	var bufs []disk.Block
 	for pos := start; pos < end; pos++ {
 		addr := addrs[pos%LOGSZ]
 		b := d.Read(LOGSTART + pos%LOGSZ)
-		bufs = append(bufs, Update{Addr: addr, Block: b})
+		memaddrs = append(memaddrs, addr)
+		bufs = append(bufs, b)
 	}
 	return &circularAppender{
 		diskAddrs: addrs,
-	}, LogPosition(start), LogPosition(end), bufs
+	}, LogPosition(start), LogPosition(end), memaddrs, bufs
 }
 
 func (c *circularAppender) hdr1(end LogPosition, bhdr []byte) disk.Block {
@@ -76,20 +77,44 @@ func hdr2(start LogPosition) disk.Block {
 	return enc.Finish()
 }
 
-func (c *circularAppender) logBlocks(d disk.Disk, end LogPosition, bufs []Update) {
-	for i, buf := range bufs {
+// Example:
+// LOGSZ = 512
+// base%LOGSZ = 510
+// len(bufs) = 3
+//
+// wrapidx = 512 - 510 = 2
+// Writev(LOGSTART+510, bufs[0:2]) --> Write(LOGSTART+510, bufs[0]), Write(LOGSTART+511, bufs[1])
+// Writev(LOGSTART, bufs[2:]) --> Write(LOGSTART, bufs[2])
+
+
+// Example 2:
+// LOGSZ = 512
+// base%LOGSZ = 10
+// len(bufs) = 3
+// wrapidx = 512 - 10 = 502
+// Writev(LOGSTART+10, bufs)
+
+
+func (c *circularAppender) logBlocks(d disk.Disk, end LogPosition, addrs []uint64, bufs []disk.Block) {
+	base := end
+	wrapidx := LOGSZ - uint64(base)%LOGSZ
+	if wrapidx > uint64(len(addrs)) {
+		// one writev suffices
+		d.Writev(LOGSTART+uint64(base)%LOGSZ, bufs)
+	} else {
+		// need two writev because we wrap around
+		d.Writev(LOGSTART+uint64(base)%LOGSZ, bufs[0:wrapidx])
+		d.Writev(LOGSTART, bufs[wrapidx:])
+	}
+
+	for i, blkno := range addrs {
 		pos := end + LogPosition(i)
-		blk := buf.Block
-		blkno := buf.Addr
-		util.DPrintf(5,
-			"logBlocks: %d to log block %d\n", blkno, pos)
-		d.Write(LOGSTART+uint64(pos)%LOGSZ, blk)
 		c.diskAddrs[uint64(pos)%LOGSZ] = blkno
 	}
 }
 
-func (c *circularAppender) Append(d disk.Disk, end LogPosition, bufs []Update, bhdr []byte) {
-	c.logBlocks(d, end, bufs)
+func (c *circularAppender) Append(d disk.Disk, end LogPosition, addrs []uint64, bufs []disk.Block, bhdr []byte) {
+	c.logBlocks(d, end, addrs, bufs)
 	d.Barrier()
 	// atomic installation
 	newEnd := end + LogPosition(len(bufs))
