@@ -19,7 +19,7 @@ func (st *WalogState) cutMemLog(installEnd LogPosition) {
 // bufs) and bufs' has unique addresses
 func absorbBufs(bufs []Update) []Update {
 	s := mkSliding(nil, 0)
-	s.memWrite(bufs)
+	InstallerAbsorptionCounter += s.memWrite(bufs)
 	return s.intoMutable()
 }
 
@@ -38,6 +38,7 @@ func installBlocks(d disk.Disk, bufs []Update) {
 		blk := buf.Block
 		util.DPrintf(5, "installBlocks: write log block %d to %d\n", i, blkno)
 		d.Write(blkno, blk)
+		InstallerDiskWriteCounter++
 	}
 }
 

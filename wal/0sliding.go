@@ -54,11 +54,17 @@ func (s *sliding) append(u Update) {
 	s.addrPos[u.Addr] = pos
 }
 
+var UserAbsorptionCounter uint64
+var InstallerAbsorptionCounter uint64
+var LoggerDiskWriteCounter uint64
+var InstallerDiskWriteCounter uint64
+
 // Absorbs writes in in-memory transactions (avoiding those that might be in
 // the process of being logged or installed).
 //
 // Assumes caller holds memLock
-func (s *sliding) memWrite(bufs []Update) {
+func (s *sliding) memWrite(bufs []Update) uint64 {
+	absorptionCounter := uint64(0)
 	// pos is only for debugging
 	var pos = s.end()
 	for _, buf := range bufs {
@@ -68,6 +74,7 @@ func (s *sliding) memWrite(bufs []Update) {
 			util.DPrintf(5, "memWrite: absorb %d pos %d old %d\n",
 				buf.Addr, pos, oldpos)
 			s.update(oldpos, buf)
+			absorptionCounter++
 		} else {
 			if ok {
 				util.DPrintf(5, "memLogMap: replace %d pos %d old %d\n",
@@ -80,6 +87,7 @@ func (s *sliding) memWrite(bufs []Update) {
 			pos += 1
 		}
 	}
+	return absorptionCounter
 }
 
 // takeFrom takes the read-only updates from a logical start position to the

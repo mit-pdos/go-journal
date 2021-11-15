@@ -88,6 +88,7 @@ func (c *circularAppender) logBlocks(d disk.Disk, end LogPosition, bufs []Update
 		util.DPrintf(5,
 			"logBlocks: %d to log block %d\n", blkno, pos)
 		d.Write(LOGSTART+uint64(pos)%LOGSZ, blk)
+		LoggerDiskWriteCounter++
 		c.diskAddrs[uint64(pos)%LOGSZ] = blkno
 	}
 }
@@ -99,11 +100,13 @@ func (c *circularAppender) Append(d disk.Disk, end LogPosition, bufs []Update) {
 	newEnd := end + LogPosition(len(bufs))
 	b := c.hdr1(newEnd)
 	d.Write(LOGHDR, b)
+	LoggerDiskWriteCounter++
 	d.Barrier()
 }
 
 func Advance(d disk.Disk, newStart LogPosition) {
 	b := hdr2(newStart)
 	d.Write(LOGHDR2, b)
+	InstallerDiskWriteCounter++
 	d.Barrier()
 }

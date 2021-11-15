@@ -132,3 +132,9 @@ func (txn *Txn) Commit() bool {
 	txn.ReleaseAll()
 	return ok
 }
+
+func (txn *Txn) CommitNoWait() bool {
+	ok := txn.buftxn.CommitWait(false)
+	txn.ReleaseAll()
+	return ok
+}

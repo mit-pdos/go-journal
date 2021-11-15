@@ -46,7 +46,7 @@ func MkLog(disk disk.Disk) *Walog {
 
 // Assumes caller holds memLock
 func doMemAppend(memLog *sliding, bufs []Update) LogPosition {
-	memLog.memWrite(bufs)
+	UserAbsorptionCounter += memLog.memWrite(bufs)
 	txn := memLog.end()
 	return txn
 }
