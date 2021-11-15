@@ -6,10 +6,11 @@ import (
 )
 
 type sliding struct {
-	log     []Update
-	start   LogPosition
-	mutable LogPosition
-	addrPos map[common.Bnum]LogPosition
+	log       []Update
+	start     LogPosition
+	mutable   LogPosition
+	needFlush bool
+	addrPos   map[common.Bnum]LogPosition
 }
 
 func mkSliding(log []Update, start LogPosition) *sliding {

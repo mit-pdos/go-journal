@@ -17,6 +17,13 @@ func (l *Walog) waitForSpace() {
 	}
 }
 
+func (l *Walog) flushIfNeeded() {
+	if l.st.memLog.needFlush {
+		l.st.memLog.clearMutable()
+		l.st.memLog.needFlush = false
+	}
+}
+
 // logAppend appends to the log, if it can find transactions to append.
 //
 // It grabs the new writes in memory and not on disk through l.nextDiskEnd; if
@@ -28,6 +35,7 @@ func (l *Walog) waitForSpace() {
 // correctness).
 func (l *Walog) logAppend(circ *circularAppender) bool {
 	l.waitForSpace()
+	l.flushIfNeeded()
 
 	diskEnd := l.st.diskEnd
 	newbufs := l.st.memLog.takeFrom(diskEnd)
