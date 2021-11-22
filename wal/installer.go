@@ -32,8 +32,7 @@ func absorbBufs(bufs []Update) []Update {
 // the data region either has the value from the old transaction or the new
 // transaction (with all of bufs applied).
 func installBlocks(d disk.Disk, bufs []Update) {
-	absorbed := absorbBufs(bufs)
-	for i, buf := range absorbed {
+	for i, buf := range bufs {
 		blkno := buf.Addr
 		blk := buf.Block
 		util.DPrintf(5, "installBlocks: write log block %d to %d\n", i, blkno)
