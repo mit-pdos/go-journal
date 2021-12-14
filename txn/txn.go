@@ -84,11 +84,7 @@ func (txn *Txn) ReadBuf(addr addr.Addr, sz uint64) []byte {
 }
 
 // OverWrite writes an object to addr
-func (txn *Txn) OverWrite(addr addr.Addr, sz uint64, data0 []byte) {
-	// PERFORMANCE-IMPACTING HACK:
-	// The current spec on the Dafny side implies we can modify data0 after this call
-	// which is only safe if we copy here.
-	data := util.CloneByteSlice(data0)
+func (txn *Txn) OverWrite(addr addr.Addr, sz uint64, data []byte) {
 	txn.Acquire(addr)
 	txn.buftxn.OverWrite(addr, sz, data)
 }
