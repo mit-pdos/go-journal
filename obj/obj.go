@@ -68,8 +68,8 @@ func (l *Log) installBufsMap(bufs []*buf.Buf) map[common.Bnum][]byte {
 }
 
 func (l *Log) installBufs(bufs []*buf.Buf) []wal.Update {
-	var blks []wal.Update
 	bufmap := l.installBufsMap(bufs)
+	var blks []wal.Update = make([]wal.Update, 0, len(bufmap))
 	for blkno, data := range bufmap {
 		blks = append(blks, wal.MkBlockData(blkno, data))
 	}
