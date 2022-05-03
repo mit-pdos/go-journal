@@ -118,13 +118,13 @@ func (txn *Txn) NDirty() uint64 {
 	return txn.buftxn.NDirty()
 }
 
-func (txn *Txn) commitNoRelease() bool {
+func (txn *Txn) commitNoRelease(wait bool) bool {
 	util.DPrintf(5, "tp Commit %p\n", txn)
-	return txn.buftxn.CommitWait(true)
+	return txn.buftxn.CommitWait(wait)
 }
 
-func (txn *Txn) Commit() bool {
-	ok := txn.commitNoRelease()
+func (txn *Txn) Commit(wait bool) bool {
+	ok := txn.commitNoRelease(wait)
 	txn.ReleaseAll()
 	return ok
 }
