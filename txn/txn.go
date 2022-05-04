@@ -128,3 +128,7 @@ func (txn *Txn) Commit(wait bool) bool {
 	txn.ReleaseAll()
 	return ok
 }
+
+func (txn *Txn) Flush() {
+	txn.buftxn.Flush()
+}
