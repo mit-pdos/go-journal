@@ -50,7 +50,7 @@ func TestReadWriteAsync(t *testing.T) {
 	tx := txn.Begin(tsys)
 	tx.OverWrite(blockAddr(513), blockSz, x)
 	tx.Commit(false)
-	tx.Flush()
+	tsys.Flush()
 
 	tx = txn.Begin(tsys)
 	buf := tx.ReadBuf(blockAddr(513), blockSz)

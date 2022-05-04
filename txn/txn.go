@@ -45,6 +45,10 @@ func Begin(tsys *Log) *Txn {
 	return trans
 }
 
+func (tsys *Log) Flush() {
+	tsys.log.Flush()
+}
+
 func (txn *Txn) acquireNoCheck(addr addr.Addr) {
 	flatAddr := addr.Flatid()
 	txn.locks.Acquire(flatAddr)
@@ -127,8 +131,4 @@ func (txn *Txn) Commit(wait bool) bool {
 	ok := txn.commitNoRelease(wait)
 	txn.ReleaseAll()
 	return ok
-}
-
-func (txn *Txn) Flush() {
-	txn.buftxn.Flush()
 }
