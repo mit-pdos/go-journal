@@ -11,17 +11,17 @@ jobs:
   test:
     strategy:
       matrix:
-        go-version: ["1.16.x"]
-    runs-on: "ubuntu-20.04"
+        go-version: ["1.21.x"]
+    runs-on: "ubuntu-latest"
     steps:
     - name: Install Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v5
       with:
         go-version: ${{ matrix.go-version }}
     - name: Install Goose
       run: |
         go install github.com/tchajed/goose/cmd/goose@latest
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Install dependencies
       run: |
         go get -t ./...
