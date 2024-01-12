@@ -14,6 +14,7 @@ jobs:
         go-version: ["1.21.x"]
     runs-on: "ubuntu-latest"
     steps:
+    - uses: actions/checkout@v4
     - name: Install Go
       uses: actions/setup-go@v5
       with:
@@ -21,7 +22,6 @@ jobs:
     - name: Install Goose
       run: |
         go install github.com/tchajed/goose/cmd/goose@latest
-    - uses: actions/checkout@v4
     - name: Install dependencies
       run: |
         go get -t ./...
