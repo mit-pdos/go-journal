@@ -35,16 +35,18 @@ package jrnl
 import (
 	"github.com/mit-pdos/go-journal/addr"
 	"github.com/mit-pdos/go-journal/buf"
+	"github.com/mit-pdos/go-journal/disk"
 	"github.com/mit-pdos/go-journal/obj"
 	"github.com/mit-pdos/go-journal/util"
+	"github.com/mit-pdos/go-journal/wal"
 )
 
 // LogBlocks is the maximum number of blocks that can be written in one
 // operation
-const LogBlocks uint64 = 511
+const LogBlocks uint64 = wal.LOGSZ //3
 
 // LogBytes is the maximum size of an operation, in bytes
-const LogBytes uint64 = 4096 * 511
+const LogBytes uint64 = disk.BlockSize * LogBlocks
 
 // Op is an in-progress journal operation.
 //
@@ -66,14 +68,17 @@ func Begin(log *obj.Log) *Op {
 	return trans
 }
 
-func (op *Op) ReadBuf(addr addr.Addr, sz uint64) *buf.Buf {
+func (op *Op) ReadBuf(addr addr.Addr, sz uint64) (*buf.Buf, error) {
 	b := op.bufs.Lookup(addr)
 	if b == nil {
-		buf := op.log.Load(addr, sz)
+		buf, err := op.log.Load(addr, sz)
+		if err != nil {
+			return nil, err
+		}
 		op.bufs.Insert(buf)
-		return op.bufs.Lookup(addr)
+		return op.bufs.Lookup(addr), nil
 	}
-	return b
+	return b, nil
 }
 
 // OverWrite writes an object to addr
@@ -111,8 +116,8 @@ func (op *Op) NDirty() uint64 {
 //
 // wait=false is an asynchronous commit, which can be made durable later with
 // Flush.
-func (op *Op) CommitWait(wait bool) bool {
+func (op *Op) CommitWait(wait bool) error {
 	util.DPrintf(3, "Commit %p w %v\n", op, wait)
-	ok := op.log.CommitWait(op.bufs.DirtyBufs(), wait)
-	return ok
+	err := op.log.CommitWait(op.bufs.DirtyBufs(), wait)
+	return err
 }

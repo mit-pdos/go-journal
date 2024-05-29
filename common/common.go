@@ -1,7 +1,7 @@
 package common
 
 import (
-	"github.com/tchajed/goose/machine/disk"
+	"github.com/mit-pdos/go-journal/disk"
 )
 
 const (

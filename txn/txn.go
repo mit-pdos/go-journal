@@ -6,7 +6,7 @@
 package txn
 
 import (
-	"github.com/tchajed/goose/machine/disk"
+	"github.com/mit-pdos/go-journal/disk"
 
 	"github.com/mit-pdos/go-journal/addr"
 	"github.com/mit-pdos/go-journal/jrnl"
@@ -26,12 +26,16 @@ type Txn struct {
 	acquired map[uint64]bool
 }
 
-func Init(d disk.Disk) *Log {
+func Init(d disk.Disk) (*Log, error) {
+	mklog, err := obj.MkLog(d)
+	if err != nil {
+		return nil, err
+	}
 	twophasePre := &Log{
-		log:   obj.MkLog(d),
+		log:   mklog,
 		locks: lockmap.MkLockMap(),
 	}
-	return twophasePre
+	return twophasePre, nil
 }
 
 // Start a local transaction with no writes from a global Log.
@@ -73,16 +77,20 @@ func (txn *Txn) ReleaseAll() {
 	}
 }
 
-func (txn *Txn) readBufNoAcquire(addr addr.Addr, sz uint64) []byte {
+func (txn *Txn) readBufNoAcquire(addr addr.Addr, sz uint64) ([]byte, error) {
 	// PERFORMANCE-IMPACTING HACK:
 	// Copying out the data to a new slice isn't necessary,
 	// but we need to make it explicit to the proof that we
 	// aren't using the read-modify feature of buftxn.
-	s := util.CloneByteSlice(txn.buftxn.ReadBuf(addr, sz).Data)
-	return s
+	buf, err := txn.buftxn.ReadBuf(addr, sz)
+	if err != nil {
+		return nil, err
+	}
+	s := util.CloneByteSlice(buf.Data)
+	return s, nil
 }
 
-func (txn *Txn) ReadBuf(addr addr.Addr, sz uint64) []byte {
+func (txn *Txn) ReadBuf(addr addr.Addr, sz uint64) ([]byte, error) {
 	txn.Acquire(addr)
 	return txn.readBufNoAcquire(addr, sz)
 }
@@ -93,9 +101,12 @@ func (txn *Txn) OverWrite(addr addr.Addr, sz uint64, data []byte) {
 	txn.buftxn.OverWrite(addr, sz, data)
 }
 
-func (txn *Txn) ReadBufBit(addr addr.Addr) bool {
-	dataByte := txn.ReadBuf(addr, 1)[0]
-	return 1 == ((dataByte >> (addr.Off % 8)) & 1)
+func (txn *Txn) ReadBufBit(addr addr.Addr) (bool, error) {
+	dataByte, err := txn.ReadBuf(addr, 1)
+	if err != nil {
+		return false, err
+	}
+	return 1 == ((dataByte[0] >> (addr.Off % 8)) & 1), nil
 }
 
 func bitToByte(off uint64, data bool) byte {
@@ -122,13 +133,13 @@ func (txn *Txn) NDirty() uint64 {
 	return txn.buftxn.NDirty()
 }
 
-func (txn *Txn) commitNoRelease(wait bool) bool {
+func (txn *Txn) commitNoRelease(wait bool) error {
 	util.DPrintf(5, "tp Commit %p\n", txn)
 	return txn.buftxn.CommitWait(wait)
 }
 
-func (txn *Txn) Commit(wait bool) bool {
-	ok := txn.commitNoRelease(wait)
+func (txn *Txn) Commit(wait bool) error {
+	err := txn.commitNoRelease(wait)
 	txn.ReleaseAll()
-	return ok
+	return err
 }
