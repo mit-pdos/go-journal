@@ -4,9 +4,9 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/mit-pdos/go-journal/disk"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
-	"github.com/tchajed/goose/machine/disk"
 
 	"github.com/mit-pdos/go-journal/common"
 )
@@ -21,12 +21,16 @@ func dataBnum(x common.Bnum) common.Bnum {
 }
 
 func (l logWrapper) Read(bn common.Bnum) disk.Block {
-	return l.Walog.Read(dataBnum(bn))
+	blk, err := l.Walog.Read(dataBnum(bn))
+	if err != nil {
+		panic(err)
+	}
+	return blk
 }
 
 func (l logWrapper) MemAppend(txn []Update) LogPosition {
-	pos, ok := l.Walog.MemAppend(txn)
-	l.assert.Equalf(true, ok,
+	pos, err := l.Walog.MemAppend(txn)
+	l.assert.Equalf(nil, err,
 		"mem append of %v blocks failed", len(txn))
 	return pos
 }
@@ -60,7 +64,11 @@ func (l logWrapper) installOnce() {
 func (l *logWrapper) Restart() {
 	l.Walog.Shutdown()
 	d := l.Walog.d
-	l.Walog = mkLog(d)
+	var err error
+	l.Walog, err = mkLog(d)
+	if err != nil {
+		panic(err)
+	}
 }
 
 type WalSuite struct {
@@ -71,7 +79,11 @@ type WalSuite struct {
 
 func (suite *WalSuite) SetupTest() {
 	suite.d = disk.NewMemDisk(10000)
-	suite.l = logWrapper{assert: suite.Assert(), Walog: mkLog(suite.d)}
+	walog, err := mkLog(suite.d)
+	if err != nil {
+		panic(err)
+	}
+	suite.l = logWrapper{assert: suite.Assert(), Walog: walog}
 }
 
 func TestWal(t *testing.T) {

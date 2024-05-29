@@ -5,9 +5,10 @@ import (
 	"testing"
 
 	"github.com/mit-pdos/go-journal/addr"
+	"github.com/mit-pdos/go-journal/disk"
 	"github.com/mit-pdos/go-journal/txn"
+	"github.com/mit-pdos/go-journal/wal"
 	"github.com/stretchr/testify/assert"
-	"github.com/tchajed/goose/machine/disk"
 )
 
 func data(sz int) []byte {
@@ -23,37 +24,41 @@ func blockAddr(a uint64) addr.Addr {
 	}
 }
 
-const blockSz uint64 = 8 * 4096
+const blockSz uint64 = 8 * disk.BlockSize
 
 func TestReadWrite(t *testing.T) {
 	d := disk.NewMemDisk(10000)
-	tsys := txn.Init(d)
+	tsys, err := txn.Init(d)
+	assert.Nil(t, err)
 
-	x := data(4096)
+	x := data(int(disk.BlockSize))
 
 	tx := txn.Begin(tsys)
-	tx.OverWrite(blockAddr(513), blockSz, x)
+	tx.OverWrite(blockAddr(wal.LOGDISKBLOCKS), blockSz, x)
 	tx.Commit(true)
 
 	tx = txn.Begin(tsys)
-	buf := tx.ReadBuf(blockAddr(513), blockSz)
+	buf, err := tx.ReadBuf(blockAddr(wal.LOGDISKBLOCKS), blockSz)
+	assert.Nil(t, err)
 	assert.Equal(t, x, buf, "read incorrect data")
 	tx.ReleaseAll()
 }
 
 func TestReadWriteAsync(t *testing.T) {
 	d := disk.NewMemDisk(10000)
-	tsys := txn.Init(d)
+	tsys, err := txn.Init(d)
+	assert.Nil(t, err)
 
-	x := data(4096)
+	x := data(int(disk.BlockSize))
 
 	tx := txn.Begin(tsys)
-	tx.OverWrite(blockAddr(513), blockSz, x)
+	tx.OverWrite(blockAddr(wal.LOGDISKBLOCKS), blockSz, x)
 	tx.Commit(false)
 	tsys.Flush()
 
 	tx = txn.Begin(tsys)
-	buf := tx.ReadBuf(blockAddr(513), blockSz)
+	buf, err := tx.ReadBuf(blockAddr(wal.LOGDISKBLOCKS), blockSz)
+	assert.Nil(t, err)
 	assert.Equal(t, x, buf, "read incorrect data")
 	tx.ReleaseAll()
 }

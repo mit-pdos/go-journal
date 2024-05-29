@@ -1,7 +1,7 @@
 package wal
 
 import (
-	"github.com/tchajed/goose/machine/disk"
+	"github.com/mit-pdos/go-journal/disk"
 	"github.com/tchajed/marshal"
 
 	"github.com/mit-pdos/go-journal/common"
@@ -51,20 +51,29 @@ func decodeHdr2(hdr2 disk.Block) uint64 {
 	return start
 }
 
-func recoverCircular(d disk.Disk) (*circularAppender, LogPosition, LogPosition, []Update) {
-	hdr1 := d.Read(LOGHDR)
-	hdr2 := d.Read(LOGHDR2)
+func recoverCircular(d disk.Disk) (*circularAppender, LogPosition, LogPosition, []Update, error) {
+	hdr1, err := d.Read(LOGHDR)
+	if err != nil {
+		return nil, 0, 0, nil, err
+	}
+	hdr2, err := d.Read(LOGHDR2)
+	if err != nil {
+		return nil, 0, 0, nil, err
+	}
 	end, addrs := decodeHdr1(hdr1)
 	start := decodeHdr2(hdr2)
 	var bufs []Update
 	for pos := start; pos < end; pos++ {
 		addr := addrs[pos%LOGSZ]
-		b := d.Read(LOGSTART + pos%LOGSZ)
+		b, err := d.Read(LOGSTART + pos%LOGSZ)
+		if err != nil {
+			return nil, 0, 0, nil, err
+		}
 		bufs = append(bufs, Update{Addr: addr, Block: b})
 	}
 	return &circularAppender{
 		diskAddrs: addrs,
-	}, LogPosition(start), LogPosition(end), bufs
+	}, LogPosition(start), LogPosition(end), bufs, nil
 }
 
 func (c *circularAppender) hdr1(end LogPosition) disk.Block {

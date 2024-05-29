@@ -1,7 +1,7 @@
 package addr
 
 import (
-	"github.com/tchajed/goose/machine/disk"
+	"github.com/mit-pdos/go-journal/disk"
 
 	"github.com/mit-pdos/go-journal/common"
 )

@@ -2,7 +2,7 @@
 package buf
 
 import (
-	"github.com/tchajed/goose/machine/disk"
+	"github.com/mit-pdos/go-journal/disk"
 	"github.com/tchajed/marshal"
 
 	"github.com/mit-pdos/go-journal/addr"
@@ -93,14 +93,17 @@ func (buf *Buf) SetDirty() {
 	buf.dirty = true
 }
 
-func (buf *Buf) WriteDirect(d disk.Disk) {
+func (buf *Buf) WriteDirect(d disk.Disk) error {
 	buf.SetDirty()
 	if buf.Sz == disk.BlockSize {
-		d.Write(uint64(buf.Addr.Blkno), buf.Data)
+		return d.Write(uint64(buf.Addr.Blkno), buf.Data)
 	} else {
-		blk := d.Read(uint64(buf.Addr.Blkno))
+		blk, err := d.Read(uint64(buf.Addr.Blkno))
+		if err != nil {
+			return err
+		}
 		buf.Install(blk)
-		d.Write(uint64(buf.Addr.Blkno), blk)
+		return d.Write(uint64(buf.Addr.Blkno), blk)
 	}
 }
 

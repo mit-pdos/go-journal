@@ -3,7 +3,7 @@ package replicated_block
 import (
 	"sync"
 
-	"github.com/tchajed/goose/machine/disk"
+	"github.com/mit-pdos/go-journal/disk"
 
 	"github.com/mit-pdos/go-journal/addr"
 	"github.com/mit-pdos/go-journal/common"
@@ -31,23 +31,26 @@ func Open(txn *obj.Log, a common.Bnum) *RepBlock {
 
 // can fail in principle if CommitWait fails,
 // but that's really impossible since it's an empty transaction
-func (rb *RepBlock) Read() (disk.Block, bool) {
+func (rb *RepBlock) Read() (disk.Block, error) {
 	rb.m.Lock()
 	tx := jrnl.Begin(rb.txn)
-	buf := tx.ReadBuf(rb.a0, 8*disk.BlockSize)
+	buf, err := tx.ReadBuf(rb.a0, 8*disk.BlockSize)
+	if err != nil {
+		return nil, err
+	}
 	b := util.CloneByteSlice(buf.Data)
 	// now we can reassemble the transaction
-	ok := tx.CommitWait(true)
+	err = tx.CommitWait(true)
 	rb.m.Unlock()
-	return b, ok
+	return b, err
 }
 
-func (rb *RepBlock) Write(b disk.Block) bool {
+func (rb *RepBlock) Write(b disk.Block) error {
 	rb.m.Lock()
 	tx := jrnl.Begin(rb.txn)
 	tx.OverWrite(rb.a0, 8*disk.BlockSize, b)
 	tx.OverWrite(rb.a1, 8*disk.BlockSize, b)
-	ok := tx.CommitWait(true)
+	err := tx.CommitWait(true)
 	rb.m.Unlock()
-	return ok
+	return err
 }

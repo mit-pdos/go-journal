@@ -4,7 +4,7 @@
 package obj
 
 import (
-	"github.com/tchajed/goose/machine/disk"
+	"github.com/mit-pdos/go-journal/disk"
 
 	"github.com/mit-pdos/go-journal/addr"
 	"github.com/mit-pdos/go-journal/buf"
@@ -26,20 +26,27 @@ type Log struct {
 
 // MkLog recovers the object logging system
 // (or initializes from an all-zero disk).
-func MkLog(d disk.Disk) *Log {
+func MkLog(d disk.Disk) (*Log, error) {
+	mklog, err := wal.MkLog(d)
+	if err != nil {
+		return nil, err
+	}
 	log := &Log{
 		mu:  new(sync.Mutex),
-		log: wal.MkLog(d),
+		log: mklog,
 		pos: wal.LogPosition(0),
 	}
-	return log
+	return log, nil
 }
 
 // Read a disk object into buf
-func (l *Log) Load(addr addr.Addr, sz uint64) *buf.Buf {
-	blk := l.log.Read(addr.Blkno)
+func (l *Log) Load(addr addr.Addr, sz uint64) (*buf.Buf, error) {
+	blk, err := l.log.Read(addr.Blkno)
+	if err != nil {
+		return nil, err
+	}
 	b := buf.MkBufLoad(addr, sz, blk)
-	return b
+	return b, nil
 }
 
 // Installs bufs into their blocks and returns the blocks.
@@ -57,7 +64,7 @@ func (l *Log) installBufsMap(bufs []*buf.Buf) map[common.Bnum][]byte {
 			if ok {
 				blk = mapblk
 			} else {
-				blk = l.log.Read(b.Addr.Blkno)
+				blk, _ = l.log.Read(b.Addr.Blkno)
 				blks[b.Addr.Blkno] = blk
 			}
 			b.Install(blk)
@@ -78,30 +85,31 @@ func (l *Log) installBufs(bufs []*buf.Buf) []wal.Update {
 
 // Acquires the commit log, installs the buffers into their
 // blocks, and appends the blocks to the in-memory log.
-func (l *Log) doCommit(bufs []*buf.Buf) (wal.LogPosition, bool) {
+func (l *Log) doCommit(bufs []*buf.Buf) (wal.LogPosition, error) {
 	l.mu.Lock()
 
 	blks := l.installBufs(bufs)
 
 	util.DPrintf(3, "doCommit: %v bufs\n", len(blks))
 
-	n, ok := l.log.MemAppend(blks)
+	n, err := l.log.MemAppend(blks)
 	// FIXME: should only be set if ok
 	l.pos = n
 
 	l.mu.Unlock()
 
-	return n, ok
+	return n, err
 }
 
 // Commit dirty bufs of the transaction into the log, and perhaps wait.
-func (l *Log) CommitWait(bufs []*buf.Buf, wait bool) bool {
-	var commit = true
+func (l *Log) CommitWait(bufs []*buf.Buf, wait bool) error {
+	// var commit = true
 	if len(bufs) > 0 {
-		n, ok := l.doCommit(bufs)
-		if !ok {
+		n, err := l.doCommit(bufs)
+		if err != nil {
 			util.DPrintf(10, "memappend failed; log is too small\n")
-			commit = false
+			// commit = false
+			return err
 		} else {
 			if wait {
 				l.log.Flush(n)
@@ -110,7 +118,8 @@ func (l *Log) CommitWait(bufs []*buf.Buf, wait bool) bool {
 	} else {
 		util.DPrintf(5, "commit read-only trans\n")
 	}
-	return commit
+	return nil
+	// return commit
 }
 
 // NOTE: this is coarse-grained and unattached to the transaction ID
