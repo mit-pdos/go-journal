@@ -14,6 +14,14 @@ type fileDisk struct {
 	numBlocks uint64
 }
 
+func num2byte(num uint64) uint64 {
+	return num
+	// bs := make([]byte, 4)
+	// binary.LittleEndian.PutUint32(bs, uint32(num))
+	// // fmt.Println(bs)
+	// return bs
+}
+
 func NewFileDisk(path string, numBlocks uint64) (fileDisk, error) {
 	fd, err := unix.Open(path, unix.O_RDWR|unix.O_CREAT, 0666)
 	if err != nil {
@@ -46,7 +54,7 @@ func (d fileDisk) ReadTo(a uint64, buf Block) error {
 	if err != nil {
 		panic("read failed: " + err.Error())
 	}
-	fmt.Printf("read: %v-%v\n", a, buf)
+	fmt.Printf("read: %v-%v\n", num2byte(a), buf)
 	return nil
 }
 
@@ -67,7 +75,7 @@ func (d fileDisk) Write(a uint64, v Block) error {
 	if err != nil {
 		panic("write failed: " + err.Error())
 	}
-	fmt.Printf("write: %v-%v\n", a, v)
+	fmt.Printf("write: %v-%v\n", num2byte(a), v)
 	return nil
 }
 
@@ -95,6 +103,25 @@ func (d fileDisk) Close() error {
 	}
 	return nil
 }
+func (d fileDisk) WriteBatch2(startPos uint64, blocks []Block) error {
+	for i, buf := range blocks {
+		d.Write(startPos+uint64(i), buf)
+	}
+	return nil
+}
+func (d fileDisk) ReadBatch(startPos uint64, blockLen int) ([]Block, error) {
+	var blks []Block
+	for i := 0; i < blockLen; i++ {
+		blk, _ := d.Read(startPos + uint64(i))
+		blks = append(blks, blk)
+	}
+	return blks, nil
+}
+
+/////////////////////////
+/////////////////////////
+/////////////////////////
+/////////////////////////
 
 var _ Disk = (*memDisk)(nil)
 
@@ -145,3 +172,17 @@ func (d memDisk) Size() (uint64, error) {
 func (d memDisk) Barrier() error { return nil }
 
 func (d memDisk) Close() error { return nil }
+func (d memDisk) WriteBatch(startPos uint64, blocks []Block) error {
+	for i, buf := range blocks {
+		d.Write(startPos+uint64(i), buf)
+	}
+	return nil
+}
+func (d memDisk) ReadBatch(startPos uint64, blockLen int) ([]Block, error) {
+	var blks []Block
+	for i := 0; i < blockLen; i++ {
+		blk, _ := d.Read(startPos + uint64(i))
+		blks = append(blks, blk)
+	}
+	return blks, nil
+}

@@ -1,6 +1,8 @@
 package wal
 
 import (
+	"sort"
+
 	"github.com/mit-pdos/go-journal/disk"
 
 	"github.com/mit-pdos/go-journal/util"
@@ -23,6 +25,52 @@ func absorbBufs(bufs []Update) []Update {
 	return s.intoMutable()
 }
 
+func batchBlockSplit(bufs2 []Update) [][]Update {
+	bufs := append([]Update{}, bufs2...)
+	sort.SliceStable(bufs, func(i, j int) bool {
+		return bufs[i].Addr < bufs[j].Addr
+	})
+
+	var tmpBlks []Update
+	var result [][]Update
+	for i, buf := range bufs {
+		isEnd := i == len(bufs)-1
+		if i == 0 {
+			tmpBlks = []Update{buf}
+		} else if bufs[i-1].Addr == buf.Addr {
+			tmpBlks[len(tmpBlks)-1] = buf
+		} else {
+			isConsecutive := bufs[i-1].Addr+1 == buf.Addr
+			if isConsecutive {
+				tmpBlks = append(tmpBlks, buf)
+			} else {
+				result = append(result, tmpBlks)
+				tmpBlks = []Update{buf}
+			}
+		}
+		if isEnd {
+			result = append(result, tmpBlks)
+		}
+	}
+	return result
+}
+func installBatchBlocks(db disk.DiskWriteBatch, bufsOrig []Update) {
+	bufs := append([]Update{}, bufsOrig...)
+	sort.SliceStable(bufs, func(i, j int) bool {
+		return bufs[i].Addr < bufs[j].Addr
+	})
+
+	splitUpdate := batchBlockSplit(bufs)
+	for _, buf := range splitUpdate {
+		var blks []disk.Block
+		for _, blk := range buf {
+			blks = append(blks, blk.Block)
+		}
+		util.DPrintf(5, "installBlocksBatch: write log block %d to %d\n", buf[0], buf[0].Addr+uint64(len(blks)))
+		db.WriteBatch(buf[0].Addr, blks)
+	}
+}
+
 // installBlocks installs the updates in bufs to the data region
 //
 // Does not hold the memLock. De-duplicates writes in bufs such that:
@@ -32,6 +80,11 @@ func absorbBufs(bufs []Update) []Update {
 // the data region either has the value from the old transaction or the new
 // transaction (with all of bufs applied).
 func installBlocks(d disk.Disk, bufs []Update) {
+	if db, ok := d.(disk.DiskWriteBatch); ok {
+		installBatchBlocks(db, bufs)
+		return
+	}
+
 	for i, buf := range bufs {
 		blkno := buf.Addr
 		blk := buf.Block

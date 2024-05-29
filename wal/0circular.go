@@ -90,6 +90,11 @@ func hdr2(start LogPosition) disk.Block {
 }
 
 func (c *circularAppender) logBlocks(d disk.Disk, end LogPosition, bufs []Update) {
+	if db, ok := d.(disk.DiskWriteBatch); ok {
+		installBatchBlocks(db, bufs)
+		return
+	}
+
 	for i, buf := range bufs {
 		pos := end + LogPosition(i)
 		blk := buf.Block

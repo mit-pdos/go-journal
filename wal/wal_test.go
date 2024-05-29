@@ -227,16 +227,16 @@ func (suite *WalSuite) TestFillingLog() {
 func (suite *WalSuite) TestAbsorption() {
 	l := suite.l
 	l.startBackgroundThreads()
-	l.MemAppend(contiguousTxn(0, 11, block1))
-	l.MemAppend(contiguousTxn(0, 10, block2))
+	l.MemAppend(contiguousTxn(0, 11-5, block1))
+	l.MemAppend(contiguousTxn(0, 10-5, block2))
 	suite.Equal(block2, l.Read(0))
 	suite.Equal(block2, l.Read(1))
-	l.MemAppend(contiguousTxn(2, 8, block0))
+	l.MemAppend(contiguousTxn(2, 8-5, block0))
 	suite.Equal(block2, l.Read(0))
 	suite.Equal(block2, l.Read(1))
 	suite.Equal(block0, l.Read(2),
 		"latest write should absorb old one")
-	suite.Equal(block1, l.Read(10))
+	suite.Equal(block1, l.Read(10-5))
 }
 
 func (suite *WalSuite) TestShutdownQuiescent() {
@@ -258,7 +258,7 @@ func (suite *WalSuite) TestShutdownInProgress() {
 	l := suite.l
 	l.startBackgroundThreads()
 	l.MemAppend(contiguousTxn(1, 3, block1))
-	l.MemAppend(contiguousTxn(1, 10, block2))
+	l.MemAppend(contiguousTxn(1, 10-5, block2))
 	l.MemAppend(contiguousTxn(1, int(LOGSZ-3), block1))
 	l.Shutdown()
 }
@@ -267,7 +267,7 @@ func (suite *WalSuite) TestRecoverFlushed() {
 	l := suite.l
 	l.startBackgroundThreads()
 	l.MemAppend(contiguousTxn(1, 3, block1))
-	pos := l.MemAppend(contiguousTxn(20, 10, block2))
+	pos := l.MemAppend(contiguousTxn(20, 10-5, block2))
 	l.Flush(pos)
 
 	l.Restart()
@@ -280,7 +280,7 @@ func (suite *WalSuite) TestRecoverPending() {
 	l := suite.l
 	l.startBackgroundThreads()
 	l.MemAppend(contiguousTxn(1, 3, block1))
-	l.MemAppend(contiguousTxn(20, 10, block2))
+	l.MemAppend(contiguousTxn(20, 10-5, block2))
 
 	l.Restart()
 	suite.Equal(block0, l.Read(0))
@@ -306,7 +306,7 @@ func (suite *WalSuite) TestRecoverUninstalled() {
 	}()
 	l.logOnce()
 	l.install()
-	pos = l.MemAppend(contiguousTxn(1+LOGSZ, 10, block2))
+	pos = l.MemAppend(contiguousTxn(1+LOGSZ, 10-5, block2))
 	go func() {
 		l.Flush(pos)
 	}()

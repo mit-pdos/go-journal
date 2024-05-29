@@ -26,7 +26,7 @@ func data(sz int) []byte {
 	return d
 }
 
-const inodeSz uint64 = 8 * 32
+const inodeSz uint64 = 8 * 128
 
 func inodeAddr(i uint64) addr.Addr {
 	inodeCountBlk := disk.BlockSize / (inodeSz / 8)
@@ -36,25 +36,26 @@ func inodeAddr(i uint64) addr.Addr {
 func TestJrnlWriteRead(t *testing.T) {
 	// util.Debug = 10
 
-	var d disk.Disk = disk.NewMemDisk(wal.LOGDISKBLOCKS + 15)
+	var d disk.Disk = disk.NewMemDisk(wal.LOGDISKBLOCKS + 15000)
 
-	fmt.Printf("log size: %v\n", jrnl.LogBlocks)
-
+	// fmt.Printf("log size: %v\n", jrnl.LogBlocks)
 	// pwd, _ := os.Getwd()
 	// path := pwd + "/disk.log"
 	// os.Remove(path)
-	// d, err := disk.NewFileDisk(path, wal.LOGDISKBLOCKS+15)
+	// d, err := disk.NewFileDisk(path, wal.LOGDISKBLOCKS+15000)
 	// assert.Nil(t, err)
 
 	log, err := obj.MkLog(d)
 	assert.Nil(t, err)
 
 	if true {
-		op := jrnl.Begin(log)
-		for i := 0; i < 3; i++ {
-			op.OverWrite(inodeAddr(uint64(i)), inodeSz, data(int(inodeSz/8)))
+		for j := 1000; j < 2000; j++ {
+			op := jrnl.Begin(log)
+			for i := 0; i < 1; i++ {
+				op.OverWrite(inodeAddr(uint64(j*1+i)), inodeSz, data(int(inodeSz/8)))
+			}
+			op.CommitWait(true)
 		}
-		op.CommitWait(true)
 	}
 
 	if true {
@@ -73,6 +74,42 @@ func TestJrnlWriteRead(t *testing.T) {
 
 		assert.Nil(t, err)
 		assert.Equal(t, bs1, buf.Data)
+	}
+
+}
+
+func TestJrnlBatchWriteRead(t *testing.T) {
+	// util.Debug = 10
+
+	var d disk.Disk = disk.NewMemDisk(wal.LOGDISKBLOCKS + 15000)
+
+	fmt.Printf("log size: %v\n", jrnl.LogBlocks)
+
+	// pwd, _ := os.Getwd()
+	// path := pwd + "/disk.log"
+	// os.Remove(path)
+	// d, err := disk.NewFileDisk(path, wal.LOGDISKBLOCKS+15000)
+	// assert.Nil(t, err)
+
+	log, err := obj.MkLog(d)
+	assert.Nil(t, err)
+
+	var datas [][]byte
+	for i := 0; i < int(wal.LOGSZ); i++ {
+		datas = append(datas, data(int(inodeSz/8)))
+	}
+
+	op := jrnl.Begin(log)
+	for i, data := range datas {
+		op.OverWrite(inodeAddr(uint64(100+i)), inodeSz, data)
+	}
+	op.CommitWait(true)
+
+	op = jrnl.Begin(log)
+	for i, data := range datas {
+		buf, err := op.ReadBuf(inodeAddr(uint64(100+i)), inodeSz)
+		assert.Nil(t, err)
+		assert.Equal(t, data, buf.Data)
 	}
 
 }

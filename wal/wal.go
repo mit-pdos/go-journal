@@ -4,12 +4,10 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/tchajed/goose/machine"
-
-	"github.com/mit-pdos/go-journal/disk"
-
 	"github.com/mit-pdos/go-journal/common"
+	"github.com/mit-pdos/go-journal/disk"
 	"github.com/mit-pdos/go-journal/util"
+	"github.com/tchajed/goose/machine"
 )
 
 func mkLog(disk disk.Disk) (*Walog, error) {
@@ -136,6 +134,7 @@ func (st *WalogState) memLogHasSpace(newUpdates uint64) bool {
 // due overflowing 2^64 writes)
 func (l *Walog) MemAppend(bufs []Update) (LogPosition, error) {
 	if uint64(len(bufs)) > LOGSZ {
+		util.DPrintf(10, "bufs size large than LOGSZ")
 		return 0, fmt.Errorf("bufs size large than LOGSZ")
 	}
 

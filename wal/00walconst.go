@@ -27,7 +27,7 @@ const (
 	HDRMETA       = uint64(8) // space for the end position
 	HDRADDRS      = (disk.BlockSize - HDRMETA) / 8
 	LOGSZ         = HDRADDRS
-	LOGDISKBLOCKS = HDRADDRS + 2 // 2 for log header
+	LOGDISKBLOCKS = HDRADDRS + 2 // 2 for log header, 0:end pos & disk addrs, 1:start pos, [2:LOGDISKBLOCKS]: journal data list
 )
 
 const (
