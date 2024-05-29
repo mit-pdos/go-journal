@@ -4,9 +4,9 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/mit-pdos/go-journal/disk"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
-	"github.com/tchajed/goose/machine/disk"
 
 	"github.com/mit-pdos/go-journal/common"
 )
@@ -21,12 +21,16 @@ func dataBnum(x common.Bnum) common.Bnum {
 }
 
 func (l logWrapper) Read(bn common.Bnum) disk.Block {
-	return l.Walog.Read(dataBnum(bn))
+	blk, err := l.Walog.Read(dataBnum(bn))
+	if err != nil {
+		panic(err)
+	}
+	return blk
 }
 
 func (l logWrapper) MemAppend(txn []Update) LogPosition {
-	pos, ok := l.Walog.MemAppend(txn)
-	l.assert.Equalf(true, ok,
+	pos, err := l.Walog.MemAppend(txn)
+	l.assert.Equalf(nil, err,
 		"mem append of %v blocks failed", len(txn))
 	return pos
 }
@@ -60,7 +64,11 @@ func (l logWrapper) installOnce() {
 func (l *logWrapper) Restart() {
 	l.Walog.Shutdown()
 	d := l.Walog.d
-	l.Walog = mkLog(d)
+	var err error
+	l.Walog, err = mkLog(d)
+	if err != nil {
+		panic(err)
+	}
 }
 
 type WalSuite struct {
@@ -71,7 +79,11 @@ type WalSuite struct {
 
 func (suite *WalSuite) SetupTest() {
 	suite.d = disk.NewMemDisk(10000)
-	suite.l = logWrapper{assert: suite.Assert(), Walog: mkLog(suite.d)}
+	walog, err := mkLog(suite.d)
+	if err != nil {
+		panic(err)
+	}
+	suite.l = logWrapper{assert: suite.Assert(), Walog: walog}
 }
 
 func TestWal(t *testing.T) {
@@ -215,16 +227,16 @@ func (suite *WalSuite) TestFillingLog() {
 func (suite *WalSuite) TestAbsorption() {
 	l := suite.l
 	l.startBackgroundThreads()
-	l.MemAppend(contiguousTxn(0, 11, block1))
-	l.MemAppend(contiguousTxn(0, 10, block2))
+	l.MemAppend(contiguousTxn(0, 11-5, block1))
+	l.MemAppend(contiguousTxn(0, 10-5, block2))
 	suite.Equal(block2, l.Read(0))
 	suite.Equal(block2, l.Read(1))
-	l.MemAppend(contiguousTxn(2, 8, block0))
+	l.MemAppend(contiguousTxn(2, 8-5, block0))
 	suite.Equal(block2, l.Read(0))
 	suite.Equal(block2, l.Read(1))
 	suite.Equal(block0, l.Read(2),
 		"latest write should absorb old one")
-	suite.Equal(block1, l.Read(10))
+	suite.Equal(block1, l.Read(10-5))
 }
 
 func (suite *WalSuite) TestShutdownQuiescent() {
@@ -246,7 +258,7 @@ func (suite *WalSuite) TestShutdownInProgress() {
 	l := suite.l
 	l.startBackgroundThreads()
 	l.MemAppend(contiguousTxn(1, 3, block1))
-	l.MemAppend(contiguousTxn(1, 10, block2))
+	l.MemAppend(contiguousTxn(1, 10-5, block2))
 	l.MemAppend(contiguousTxn(1, int(LOGSZ-3), block1))
 	l.Shutdown()
 }
@@ -255,7 +267,7 @@ func (suite *WalSuite) TestRecoverFlushed() {
 	l := suite.l
 	l.startBackgroundThreads()
 	l.MemAppend(contiguousTxn(1, 3, block1))
-	pos := l.MemAppend(contiguousTxn(20, 10, block2))
+	pos := l.MemAppend(contiguousTxn(20, 10-5, block2))
 	l.Flush(pos)
 
 	l.Restart()
@@ -268,7 +280,7 @@ func (suite *WalSuite) TestRecoverPending() {
 	l := suite.l
 	l.startBackgroundThreads()
 	l.MemAppend(contiguousTxn(1, 3, block1))
-	l.MemAppend(contiguousTxn(20, 10, block2))
+	l.MemAppend(contiguousTxn(20, 10-5, block2))
 
 	l.Restart()
 	suite.Equal(block0, l.Read(0))
@@ -294,7 +306,7 @@ func (suite *WalSuite) TestRecoverUninstalled() {
 	}()
 	l.logOnce()
 	l.install()
-	pos = l.MemAppend(contiguousTxn(1+LOGSZ, 10, block2))
+	pos = l.MemAppend(contiguousTxn(1+LOGSZ, 10-5, block2))
 	go func() {
 		l.Flush(pos)
 	}()

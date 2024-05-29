@@ -1,17 +1,18 @@
 package jrnl_test
 
 import (
+	"fmt"
 	"math/rand"
 	"sync"
 	"testing"
 
 	"github.com/mit-pdos/go-journal/addr"
+	"github.com/mit-pdos/go-journal/disk"
 	"github.com/mit-pdos/go-journal/jrnl"
 	"github.com/mit-pdos/go-journal/obj"
 	"github.com/mit-pdos/go-journal/util"
 	"github.com/mit-pdos/go-journal/wal"
 	"github.com/stretchr/testify/assert"
-	"github.com/tchajed/goose/machine/disk"
 )
 
 func TestSizeConstants(t *testing.T) {
@@ -28,52 +29,120 @@ func data(sz int) []byte {
 const inodeSz uint64 = 8 * 128
 
 func inodeAddr(i uint64) addr.Addr {
-	return addr.MkAddr(513+i/32, (i%32)*inodeSz)
+	inodeCountBlk := disk.BlockSize / (inodeSz / 8)
+	return addr.MkAddr(wal.LOGDISKBLOCKS+i/inodeCountBlk, (i%inodeCountBlk)*inodeSz)
 }
 
 func TestJrnlWriteRead(t *testing.T) {
-	d := disk.NewMemDisk(10000)
-	log := obj.MkLog(d)
+	// util.Debug = 10
+
+	var d disk.Disk = disk.NewMemDisk(wal.LOGDISKBLOCKS + 15000)
+
+	// fmt.Printf("log size: %v\n", jrnl.LogBlocks)
+	// pwd, _ := os.Getwd()
+	// path := pwd + "/disk.log"
+	// os.Remove(path)
+	// d, err := disk.NewFileDisk(path, wal.LOGDISKBLOCKS+15000)
+	// assert.Nil(t, err)
+
+	log, err := obj.MkLog(d)
+	assert.Nil(t, err)
+
+	if true {
+		for j := 1000; j < 2000; j++ {
+			op := jrnl.Begin(log)
+			for i := 0; i < 1; i++ {
+				op.OverWrite(inodeAddr(uint64(j*1+i)), inodeSz, data(int(inodeSz/8)))
+			}
+			op.CommitWait(true)
+		}
+	}
+
+	if true {
+		op := jrnl.Begin(log)
+		bs0 := data(int(inodeSz / 8))
+		bs1 := data(int(inodeSz / 8))
+		op.OverWrite(inodeAddr(0), inodeSz, bs0)
+		op.OverWrite(inodeAddr(1), inodeSz, bs1)
+		op.CommitWait(true)
+
+		op = jrnl.Begin(log)
+		buf, err := op.ReadBuf(inodeAddr(0), inodeSz)
+		assert.Nil(t, err)
+		assert.Equal(t, bs0, buf.Data)
+		buf, err = op.ReadBuf(inodeAddr(1), inodeSz)
+
+		assert.Nil(t, err)
+		assert.Equal(t, bs1, buf.Data)
+	}
+
+}
+
+func TestJrnlBatchWriteRead(t *testing.T) {
+	// util.Debug = 10
+
+	var d disk.Disk = disk.NewMemDisk(wal.LOGDISKBLOCKS + 15000)
+
+	fmt.Printf("log size: %v\n", jrnl.LogBlocks)
+
+	// pwd, _ := os.Getwd()
+	// path := pwd + "/disk.log"
+	// os.Remove(path)
+	// d, err := disk.NewFileDisk(path, wal.LOGDISKBLOCKS+15000)
+	// assert.Nil(t, err)
+
+	log, err := obj.MkLog(d)
+	assert.Nil(t, err)
+
+	var datas [][]byte
+	for i := 0; i < int(wal.LOGSZ); i++ {
+		datas = append(datas, data(int(inodeSz/8)))
+	}
 
 	op := jrnl.Begin(log)
-	bs0 := data(128)
-	bs1 := data(128)
-	op.OverWrite(inodeAddr(0), inodeSz, bs0)
-	op.OverWrite(inodeAddr(1), inodeSz, bs1)
+	for i, data := range datas {
+		op.OverWrite(inodeAddr(uint64(100+i)), inodeSz, data)
+	}
 	op.CommitWait(true)
 
 	op = jrnl.Begin(log)
-	buf := op.ReadBuf(inodeAddr(0), inodeSz)
-	assert.Equal(t, bs0, buf.Data)
-	buf = op.ReadBuf(inodeAddr(1), inodeSz)
-	assert.Equal(t, bs1, buf.Data)
+	for i, data := range datas {
+		buf, err := op.ReadBuf(inodeAddr(uint64(100+i)), inodeSz)
+		assert.Nil(t, err)
+		assert.Equal(t, data, buf.Data)
+	}
+
 }
 
 func assertObj(t *testing.T, expected []byte, op *jrnl.Op, a addr.Addr,
 	msgAndArgs ...interface{}) {
 	t.Helper()
 	sz := 8 * uint64(len(expected))
-	buf := op.ReadBuf(a, sz)
+	buf, err := op.ReadBuf(a, sz)
+	assert.Nil(t, err)
 	assert.Equal(t, expected, buf.Data, msgAndArgs...)
 }
 
 func TestJrnlReadSetDirty(t *testing.T) {
 	d := disk.NewMemDisk(10000)
-	log := obj.MkLog(d)
+	log, err := obj.MkLog(d)
+	assert.Nil(t, err)
 
 	op := jrnl.Begin(log)
 	// initialize with non-zero data
-	bs0 := data(128)
-	bs1 := data(128)
+	bs0 := data(int(inodeSz / 8))
+	bs1 := data(int(inodeSz / 8))
 	op.OverWrite(inodeAddr(0), inodeSz, util.CloneByteSlice(bs0))
 	op.OverWrite(inodeAddr(1), inodeSz, util.CloneByteSlice(bs1))
 	op.CommitWait(true)
 	log.Shutdown()
 
-	log = obj.MkLog(d)
+	log, err = obj.MkLog(d)
+	assert.Nil(t, err)
 	op = jrnl.Begin(log)
 	// modify just inode 1 through ReadBuf
-	buf := op.ReadBuf(inodeAddr(1), inodeSz)
+	buf, err := op.ReadBuf(inodeAddr(1), inodeSz)
+	assert.Nil(t, err)
 	buf.Data[0], buf.Data[1] = 0, 0
 	buf.SetDirty()
 	op.CommitWait(true)
@@ -85,7 +154,8 @@ func TestJrnlReadSetDirty(t *testing.T) {
 
 func testJrnlConcurrentOperations(t *testing.T, wait bool) {
 	d := disk.NewMemDisk(10000)
-	log := obj.MkLog(d)
+	log, err := obj.MkLog(d)
+	assert.Nil(t, err)
 
 	// 2048 = 64*32, so 64 blocks worth of "inodes"
 	const numInodes = 2048
@@ -97,7 +167,7 @@ func testJrnlConcurrentOperations(t *testing.T, wait bool) {
 		i := i
 		go func() {
 			op := jrnl.Begin(log)
-			bs := data(128)
+			bs := data(int(inodeSz / 8))
 			op.OverWrite(inodeAddr(i), inodeSz, bs)
 			op.CommitWait(wait)
 			inodes[i] = bs

@@ -1,18 +1,20 @@
 package wal
 
 import (
+	"fmt"
 	"sync"
 
-	"github.com/tchajed/goose/machine"
-
-	"github.com/tchajed/goose/machine/disk"
-
 	"github.com/mit-pdos/go-journal/common"
+	"github.com/mit-pdos/go-journal/disk"
 	"github.com/mit-pdos/go-journal/util"
+	"github.com/tchajed/goose/machine"
 )
 
-func mkLog(disk disk.Disk) *Walog {
-	circ, start, end, memLog := recoverCircular(disk)
+func mkLog(disk disk.Disk) (*Walog, error) {
+	circ, start, end, memLog, err := recoverCircular(disk)
+	if err != nil {
+		return nil, err
+	}
 	ml := new(sync.Mutex)
 	st := &WalogState{
 		memLog:   mkSliding(memLog, start),
@@ -30,7 +32,7 @@ func mkLog(disk disk.Disk) *Walog {
 		condShut:    sync.NewCond(ml),
 	}
 	util.DPrintf(1, "mkLog: size %d\n", LOGSZ)
-	return l
+	return l, nil
 }
 
 func (l *Walog) startBackgroundThreads() {
@@ -38,10 +40,13 @@ func (l *Walog) startBackgroundThreads() {
 	go func() { l.installer() }()
 }
 
-func MkLog(disk disk.Disk) *Walog {
-	l := mkLog(disk)
+func MkLog(disk disk.Disk) (*Walog, error) {
+	l, err := mkLog(disk)
+	if err != nil {
+		return nil, err
+	}
 	l.startBackgroundThreads()
-	return l
+	return l, nil
 }
 
 // Assumes caller holds memLock
@@ -92,7 +97,7 @@ func (l *Walog) ReadMem(blkno common.Bnum) (disk.Block, bool) {
 }
 
 // Read from only the installed state (a subset of durable state).
-func (l *Walog) ReadInstalled(blkno common.Bnum) disk.Block {
+func (l *Walog) ReadInstalled(blkno common.Bnum) (disk.Block, error) {
 	return l.d.Read(blkno)
 }
 
@@ -100,10 +105,10 @@ func (l *Walog) ReadInstalled(blkno common.Bnum) disk.Block {
 // difficult-to-linearize way (specifically, it is future-dependent when to
 // linearize between the l.memLog.Unlock() and the eventual disk read, due to
 // potential concurrent cache or disk writes).
-func (l *Walog) Read(blkno common.Bnum) disk.Block {
+func (l *Walog) Read(blkno common.Bnum) (disk.Block, error) {
 	blk, ok := l.ReadMem(blkno)
 	if ok {
-		return blk
+		return blk, nil
 	}
 	return l.ReadInstalled(blkno)
 }
@@ -127,18 +132,20 @@ func (st *WalogState) memLogHasSpace(newUpdates uint64) bool {
 //
 // On failure guaranteed to be idempotent (failure can only occur in principle,
 // due overflowing 2^64 writes)
-func (l *Walog) MemAppend(bufs []Update) (LogPosition, bool) {
+func (l *Walog) MemAppend(bufs []Update) (LogPosition, error) {
 	if uint64(len(bufs)) > LOGSZ {
-		return 0, false
+		util.DPrintf(10, "bufs size large than LOGSZ")
+		return 0, fmt.Errorf("bufs size large than LOGSZ")
 	}
 
 	var txn LogPosition = 0
-	var ok = true
+	var err error
 	l.memLock.Lock()
 	st := l.st
 	for {
 		if st.updatesOverflowU64(uint64(len(bufs))) {
-			ok = false
+			// ok = false
+			err = fmt.Errorf("updatesOverflowU64")
 			break
 		}
 		if st.memLogHasSpace(uint64(len(bufs))) {
@@ -154,7 +161,7 @@ func (l *Walog) MemAppend(bufs []Update) (LogPosition, bool) {
 		continue
 	}
 	l.memLock.Unlock()
-	return txn, ok
+	return txn, err
 }
 
 // Flush flushes a transaction pos (and all preceding transactions)
