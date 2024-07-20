@@ -5,13 +5,13 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/goose-lang/goose/machine/disk"
 	"github.com/mit-pdos/go-journal/addr"
 	"github.com/mit-pdos/go-journal/jrnl"
 	"github.com/mit-pdos/go-journal/obj"
 	"github.com/mit-pdos/go-journal/util"
 	"github.com/mit-pdos/go-journal/wal"
 	"github.com/stretchr/testify/assert"
-	"github.com/tchajed/goose/machine/disk"
 )
 
 func TestSizeConstants(t *testing.T) {

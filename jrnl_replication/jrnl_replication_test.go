@@ -3,8 +3,8 @@ package replicated_block
 import (
 	"testing"
 
+	"github.com/goose-lang/goose/machine/disk"
 	"github.com/stretchr/testify/assert"
-	"github.com/tchajed/goose/machine/disk"
 
 	"github.com/mit-pdos/go-journal/obj"
 )

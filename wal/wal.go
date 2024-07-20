@@ -3,9 +3,9 @@ package wal
 import (
 	"sync"
 
-	"github.com/tchajed/goose/machine"
+	"github.com/goose-lang/goose/machine"
 
-	"github.com/tchajed/goose/machine/disk"
+	"github.com/goose-lang/goose/machine/disk"
 
 	"github.com/mit-pdos/go-journal/common"
 	"github.com/mit-pdos/go-journal/util"

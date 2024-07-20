@@ -1,8 +1,8 @@
 package wal
 
 import (
+	"github.com/goose-lang/goose/machine"
 	"github.com/mit-pdos/go-journal/util"
-	"github.com/tchajed/goose/machine"
 )
 
 // Waits on the installer thread to free space in the log so everything
