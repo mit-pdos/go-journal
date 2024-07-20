@@ -1,9 +1,9 @@
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/goose-lang/goose v0.6.1 h1:nji9qN45oi8PVELnJAxPUvqt9EufiM3J6+xyiXdYTjM=
-github.com/goose-lang/goose v0.6.1/go.mod h1:d/fwDpBnwyXI97lXIlmMgABHObvZ66WnN9J9x6y5Ofk=
-github.com/goose-lang/std v0.3.2 h1:dYnOsrrbfSG5Bx/rE/X2PylIX6ObTavUosXqzbIzRys=
-github.com/goose-lang/std v0.3.2/go.mod h1:0IoDUCIC80Msc7h/SqpbZY1ytjhV39rgKnyHG/tjdis=
+github.com/goose-lang/goose v0.6.2 h1:Z39QWk7UowzisFL9rnLd4/C+Cg0VF8oPvqOUE+aGB+w=
+github.com/goose-lang/goose v0.6.2/go.mod h1:jSP/O+LNLVD4P4itkfh8Ly05NdJ1NYbLjYWkoZs86WU=
+github.com/goose-lang/std v0.3.3 h1:UjxgenvQFlWKpxqJjbIlbaXsqwP0Sh+FzY63sF+4NkY=
+github.com/goose-lang/std v0.3.3/go.mod h1:9sR9tiZzSzUGh5erxPX3gbWpVZ/4Kjs2C2zGfKUqoNk=
 github.com/kr/text v0.2.0 h1:5Nx0Ya0ZqY2ygV366QzturHI13Jq95ApcVaJBhpS+AY=
 github.com/kr/text v0.2.0/go.mod h1:eLer722TekiGuMkidMxC/pM04lWEeraHUUmBw8l2grE=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e h1:fD57ERR4JtEqsWbfPhv4DMiApHyliiK5xCTNVSPiaAs=
