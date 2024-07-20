@@ -1,7 +1,7 @@
 package wal
 
 import (
-	"github.com/goose-lang/goose/machine"
+	"github.com/goose-lang/primitive"
 	"github.com/mit-pdos/go-journal/util"
 )
 
@@ -48,7 +48,7 @@ func (l *Walog) logAppend(circ *circularAppender) bool {
 
 	l.memLock.Lock()
 
-	machine.Linearize()
+	primitive.Linearize()
 
 	l.st.diskEnd = diskEnd + LogPosition(len(newbufs))
 	l.condLogger.Broadcast()

@@ -1,7 +1,7 @@
 package buf
 
 import (
-	"github.com/goose-lang/goose/machine/disk"
+	"github.com/goose-lang/primitive/disk"
 
 	"testing"
 

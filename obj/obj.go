@@ -4,7 +4,7 @@
 package obj
 
 import (
-	"github.com/goose-lang/goose/machine/disk"
+	"github.com/goose-lang/primitive/disk"
 
 	"github.com/mit-pdos/go-journal/addr"
 	"github.com/mit-pdos/go-journal/buf"

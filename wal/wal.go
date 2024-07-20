@@ -3,9 +3,9 @@ package wal
 import (
 	"sync"
 
-	"github.com/goose-lang/goose/machine"
+	"github.com/goose-lang/primitive"
 
-	"github.com/goose-lang/goose/machine/disk"
+	"github.com/goose-lang/primitive/disk"
 
 	"github.com/mit-pdos/go-journal/common"
 	"github.com/mit-pdos/go-journal/util"
@@ -86,7 +86,7 @@ func (st *WalogState) readMem(blkno common.Bnum) (disk.Block, bool) {
 func (l *Walog) ReadMem(blkno common.Bnum) (disk.Block, bool) {
 	l.memLock.Lock()
 	blk, ok := l.st.readMem(blkno)
-	machine.Linearize()
+	primitive.Linearize()
 	l.memLock.Unlock()
 	return blk, ok
 }
@@ -143,7 +143,7 @@ func (l *Walog) MemAppend(bufs []Update) (LogPosition, bool) {
 		}
 		if st.memLogHasSpace(uint64(len(bufs))) {
 			txn = doMemAppend(st.memLog, bufs)
-			machine.Linearize()
+			primitive.Linearize()
 			break
 		}
 		util.DPrintf(5, "memAppend: log is full; try again")
@@ -176,7 +176,7 @@ func (l *Walog) Flush(pos LogPosition) {
 	for !(pos <= l.st.diskEnd) {
 		l.condLogger.Wait()
 	}
-	machine.Linearize()
+	primitive.Linearize()
 	// establishes pos <= l.st.diskEnd
 	// (pos is now durably on disk)
 	l.memLock.Unlock()
